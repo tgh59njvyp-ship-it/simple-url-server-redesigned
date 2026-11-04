@@ -71,7 +71,8 @@ h1 .accent{color:var(--brand)}
 .stats dt{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
 .stats dd{margin:4px 0 0;font-size:20px;font-weight:600}
 .mode-index{margin-top:40px;display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--line-strong)}
-@media(min-width:1024px){.mode-index{grid-template-columns:repeat(4,1fr)}}
+@media(min-width:1024px){.mode-index{grid-template-columns:repeat(3,1fr)}}
+@media(min-width:1280px){.mode-index{grid-template-columns:repeat(6,1fr)}}
 .mode-cell{background:none;border:0;border-bottom:1px solid var(--line);padding:16px 4px;text-align:left;color:var(--ink)}
 @media(min-width:640px){.mode-cell{padding:16px 12px}}
 @media(min-width:1024px){.mode-cell{border-bottom:0}}
@@ -89,8 +90,9 @@ main{max-width:1152px;margin:0 auto;padding:40px 16px 56px;display:flex;flex-dir
 .static-note b{color:var(--brand);font-weight:600}
 
 /* tabs */
-.tabs-list{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px}
-.tab-btn{height:44px;border:0;border-radius:999px;background:transparent;color:var(--muted);font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;transition:.2s}
+.tabs-list{display:flex;gap:4px;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px;overflow-x:auto;scrollbar-width:none}
+.tabs-list::-webkit-scrollbar{display:none}
+.tab-btn{height:44px;border:0;border-radius:999px;background:transparent;color:var(--muted);font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;transition:.2s;flex:1 0 auto;padding:0 16px;white-space:nowrap}
 .tab-btn:hover{color:var(--ink)}
 .tab-btn.active{background:var(--ink);color:var(--paper)}
 .panel{display:none;margin-top:24px}
@@ -244,6 +246,19 @@ footer{background:var(--ink);color:var(--paper)}
 .grid2{display:grid;gap:16px}
 @media(min-width:640px){.grid2{grid-template-columns:1fr 1fr}}
 .mt{margin-top:16px}
+
+.auth-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;border:1px solid var(--line);border-radius:16px;padding:12px 14px;margin:0 0 14px;background:var(--card);font-size:13px}
+.auth-bar .who{color:var(--muted);line-height:1.6}
+.auth-bar .who b{color:var(--ink)}
+.auth-btns{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.cloud-help{border:1px dashed var(--line-strong);border-radius:16px;padding:14px 16px;margin:0 0 14px;background:var(--card)}
+.cloud-help summary{font-size:14px;font-weight:700;cursor:pointer}
+.cloud-help pre{overflow-x:auto;background:#201d17;color:#efeadf;border-radius:12px;padding:14px;font-size:12px;line-height:1.7;font-family:"IBM Plex Mono",monospace}
+.cloud-help p{font-size:13px;color:var(--muted);line-height:1.8}
+.status-line{font-size:13px;color:var(--muted);min-height:20px}
+.status-line.err{color:var(--brand)}
+.chk{display:flex;gap:10px;align-items:center;font-size:14px;font-weight:500;cursor:pointer}
+.chk input{width:18px;height:18px;accent-color:var(--brand)}
 </style>
 </head>
 <body>
@@ -272,7 +287,7 @@ footer{background:var(--ink);color:var(--paper)}
     <div class="hero-row">
       <p class="hero-desc">HTMLページ、ZIPサイト、擬似APIを、その場で共有URLに。サーバーもアカウントもいりません。作って、貼って、押すだけ。</p>
       <dl class="stats">
-        <div><dt>Modes</dt><dd>04</dd></div>
+        <div><dt>Modes</dt><dd>06</dd></div>
         <div><dt>Sign-up</dt><dd>なし</dd></div>
         <div><dt>Price</dt><dd>¥0</dd></div>
       </dl>
@@ -284,6 +299,27 @@ footer{background:var(--ink);color:var(--paper)}
 <main>
   <section>
     <p class="static-note">STATIC EDITION — このファイル1枚で動く静的版です。作った内容は公開サーバーに保存され、URLが発行されます。</p>
+
+    <div class="auth-bar" id="authBar">
+      <span class="who" id="authWho"><b>アカウント</b> — ログインすると履歴をクラウドに保存できます（端末を変えても見られます）</span>
+      <span class="auth-btns" id="authBtns">
+        <button class="btn btn-outline btn-sm" id="loginGithub">GitHubでログイン</button>
+        <button class="btn btn-outline btn-sm" id="loginGoogle">Googleでログイン</button>
+      </span>
+    </div>
+    <details class="cloud-help hidden" id="cloudHelp">
+      <summary>クラウド保存を使うには、最初に1回だけ設定が必要です（Supabaseに履歴用テーブルを作成）</summary>
+      <p>Supabaseダッシュボードで対象プロジェクト（vxdfcrgpwjsfjsdpdlzj）を開き、SQL Editorに以下を貼って実行してください。あわせて Authentication → Providers で GitHub / Google を有効化し、Authentication → URL Configuration の Redirect URLs にこのページのURLを追加するとログインできます。</p>
+      <pre id="cloudSql">create table if not exists public.user_items (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  items jsonb not null default '[]'::jsonb,
+  updated_at timestamptz not null default now()
+);
+alter table public.user_items enable row level security;
+create policy "user_items_own" on public.user_items
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);</pre>
+      <button class="btn btn-outline btn-sm" id="cloudSqlCopy">SQLをコピー</button>
+    </details>
     <div class="tabs-list" id="tabsList" role="tablist"></div>
 
     <!-- HTML -->
@@ -420,6 +456,76 @@ footer{background:var(--ink);color:var(--paper)}
         </div>
       </div>
     </div>
+
+    <!-- GitHub -->
+    <div class="panel" id="panel-github">
+      <div class="card">
+        <div class="bar">
+          <span class="dot"></span>
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:rgba(239,234,223,.6)"><path d="M6 3v12"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+          <span class="blabel">GitHub repository</span>
+          <span class="bsize">import &amp; publish</span>
+        </div>
+        <div class="panel-body stack">
+          <div class="field">
+            <label class="flabel" for="ghRepo">Repository — リポジトリ</label>
+            <input class="input mono" id="ghRepo" placeholder="owner/repo または https://github.com/owner/repo">
+            <p class="help" style="margin:0">リポジトリの中身をそのままサイトとして公開します。ビルドが必要なアプリは、ビルド済みのファイルが入っているリポジトリを指定してください。</p>
+          </div>
+          <div class="grid2">
+            <div class="field"><label class="flabel" for="ghBranch">Branch — 任意</label>
+              <input class="input mono" id="ghBranch" placeholder="空欄なら既定ブランチ"></div>
+            <div class="field"><label class="flabel" for="ghToken">GitHub Token — 非公開リポジトリ用（任意）</label>
+              <input class="input mono" type="password" id="ghToken" placeholder="github_pat_... / ghp_..."></div>
+          </div>
+          <p class="help" style="margin:0">トークンはこのブラウザだけに保存されます。公開リポジトリだけなら不要です（未入力だとGitHub APIの回数制限が厳しめです）。</p>
+          <div class="field">
+            <label class="flabel" for="ghSlug">URL name — 任意</label>
+            <div class="slug-row"><span class="slug-prefix">/s/</span><input class="input mono" id="ghSlug" placeholder="my-site" maxlength="40"></div>
+          </div>
+          <div class="status-line" id="ghStatus"></div>
+          <details class="files hidden" id="ghFilesWrap"><summary id="ghFilesSummary">取得したファイル</summary><div class="files-list" id="ghFilesList"></div></details>
+          <button class="btn btn-primary btn-lg btn-block" id="ghPublish">取り込んで公開する</button>
+          <div class="result" id="ghResult" style="margin:0"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Server -->
+    <div class="panel" id="panel-server">
+      <div class="card">
+        <div class="bar">
+          <span class="dot"></span>
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:rgba(239,234,223,.6)"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>
+          <span class="blabel">Edge Function — server</span>
+          <span class="bsize">Supabase / Deno</span>
+        </div>
+        <div class="panel-body stack">
+          <div class="grid2">
+            <div class="field"><label class="flabel" for="svToken">Supabase Access Token</label>
+              <input class="input mono" type="password" id="svToken" placeholder="sbp_...">
+              <p class="help" style="margin:0">トークンはこのブラウザだけに保存されます。<a href="https://supabase.com/dashboard/account/tokens" target="_blank" rel="noreferrer">トークンを取得する</a></p></div>
+            <div class="field"><label class="flabel" for="svRef">Project Ref — デプロイ先プロジェクト</label>
+              <input class="input mono" id="svRef" value="vxdfcrgpwjsfjsdpdlzj"></div>
+          </div>
+          <div class="field">
+            <label class="flabel" for="svName">Function name — 関数名（URLになります）</label>
+            <div class="slug-row"><span class="slug-prefix">/functions/v1/</span><input class="input mono" id="svName" placeholder="hello" maxlength="40"></div>
+          </div>
+          <div class="field">
+            <label class="flabel" for="svCode">Code — サーバーコード（Deno / TypeScript）</label>
+            <textarea class="code-area sm" id="svCode" spellcheck="false"></textarea>
+          </div>
+          <label class="chk"><input type="checkbox" id="svVerify"> JWT検証を有効にする（ログインしたユーザーだけが呼べるようにする）</label>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <button class="btn btn-outline btn-lg" id="svTest">接続テスト</button>
+            <button class="btn btn-primary btn-lg" id="svDeploy" style="flex:1">デプロイする</button>
+          </div>
+          <div class="status-line" id="svStatus"></div>
+          <div class="result" id="svResult" style="margin:0"></div>
+        </div>
+      </div>
+    </div>
   </section>
 
   <!-- History -->
@@ -536,6 +642,7 @@ const I = {
   check: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="M20 6 9 17l-5-5"/></svg>',
   plus: '<svg class="ic plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>',
   upRight: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg>',
+  git: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v12"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>',
   rocket: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>',
 };
 
@@ -543,8 +650,10 @@ const I = {
 const MODES = [
   { v: "html", n: "01", t: "HTMLページ", d: "HTMLコードを貼って公開", icon: I.file, label: "HTML" },
   { v: "zip", n: "02", t: "ZIPサイト", d: "サイトをまるごとアップ", icon: I.zip, label: "ZIP" },
-  { v: "api", n: "03", t: "モックAPI", d: "固定レスポンスを返すAPI", icon: I.server, label: "API" },
-  { v: "ai", n: "04", t: "AIアシスタント", d: "Geminiで改善・生成・説明", icon: I.bot, label: "AI" },
+  { v: "github", n: "03", t: "GitHub公開", d: "リポジトリを取り込んで公開", icon: I.git, label: "GitHub" },
+  { v: "api", n: "04", t: "モックAPI", d: "固定レスポンスを返すAPI", icon: I.server, label: "API" },
+  { v: "server", n: "05", t: "サーバー", d: "Edge Functionsにデプロイ", icon: I.rocket, label: "サーバー" },
+  { v: "ai", n: "06", t: "AIアシスタント", d: "Geminiで改善・生成・説明", icon: I.bot, label: "AI" },
 ];
 let currentTab = "html";
 $("modeIndex").innerHTML = MODES.map((m) => `
@@ -1036,12 +1145,294 @@ $("aiApply").addEventListener("click", async () => {
   finally { setAiLoading(false); }
 });
 
+
+/* ===== GitHub公開タブ ===== */
+const GH_TOKEN_KEY = "sus-gh-token";
+function u8ToB64(u8) { let bin = ""; for (let i = 0; i < u8.length; i += 0x8000) bin += String.fromCharCode(...u8.subarray(i, i + 0x8000)); return btoa(bin); }
+function b64ToU8(b) { const bin = atob(String(b).replace(/\s/g, "")); return Uint8Array.from(bin, (c) => c.charCodeAt(0)); }
+function parseRepoInput(v) {
+  let t = String(v || "").trim().replace(/^https?:\/\/github\.com\//i, "").replace(/\.git$/i, "").replace(/\/+$/, "");
+  const parts = t.split("/");
+  if (parts.length < 2 || !parts[0] || !parts[1]) return null;
+  const out = { owner: parts[0], repo: parts[1], branch: "" };
+  if (parts[2] === "tree" && parts[3]) out.branch = parts.slice(3).join("/");
+  return out;
+}
+async function ghFetch(path, token) {
+  const headers = { Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" };
+  if (token) headers.Authorization = "Bearer " + token;
+  const res = await fetch("https://api.github.com" + path, { headers });
+  if (res.ok) return res.json();
+  let msg = ""; try { msg = (await res.json())?.message ?? ""; } catch {}
+  const err = new Error("gh:" + res.status); err.status = res.status; err.ghMessage = msg; throw err;
+}
+$("ghPublish").addEventListener("click", async () => {
+  const parsed = parseRepoInput($("ghRepo").value);
+  const status = $("ghStatus");
+  const setSt = (t, isErr) => { status.textContent = t; status.classList.toggle("err", !!isErr); };
+  if (!parsed) return setSt("リポジトリを owner/repo の形で入力してください", true);
+  const token = $("ghToken").value.trim();
+  const btn = $("ghPublish"); btn.disabled = true; btn.textContent = "取得中…";
+  try {
+    const meta = await ghFetch(`/repos/${parsed.owner}/${parsed.repo}`, token);
+    const branch = ($("ghBranch").value.trim() || parsed.branch || meta.default_branch || "main");
+    setSt(`ブランチ ${branch} のファイル一覧を取得中…`);
+    const tree = await ghFetch(`/repos/${parsed.owner}/${parsed.repo}/git/trees/${encodeURIComponent(branch)}?recursive=1`, token);
+    let blobs = (tree.tree || []).filter((e) => e.type === "blob");
+    const skippedEnv = blobs.filter((e) => /(^|\/)\.env($|\.)/.test(e.path)).length;
+    blobs = blobs.filter((e) => !/(^|\/)\.env($|\.)/.test(e.path));
+    const tooBig = blobs.filter((e) => (e.size ?? 0) > 4 * 1024 * 1024);
+    blobs = blobs.filter((e) => (e.size ?? 0) <= 4 * 1024 * 1024);
+    if (!blobs.length) throw new Error("empty");
+    const total = blobs.reduce((a, e) => a + (e.size ?? 0), 0);
+    if (total > MAX_BYTES) throw new Error("toolarge");
+    const out = {};
+    let done = 0;
+    for (let i = 0; i < blobs.length; i += 5) {
+      const chunk = blobs.slice(i, i + 5);
+      await Promise.all(chunk.map(async (e) => {
+        const b = await ghFetch(`/repos/${parsed.owner}/${parsed.repo}/git/blobs/${e.sha}`, token);
+        out[e.path] = { t: mimeFor(e.path), b: u8ToB64(b64ToU8(b.content || "")) };
+      }));
+      done += chunk.length;
+      setSt(`取得中… ${done}/${blobs.length} ファイル`);
+    }
+    const files = normalizeZip(out);
+    if (!files["index.html"]) throw new Error("noindex");
+    $("ghFilesWrap").classList.remove("hidden");
+    $("ghFilesSummary").textContent = `取得したファイル（${Object.keys(files).length}）`;
+    $("ghFilesList").innerHTML = Object.keys(files).sort().map((n) => `<div>${esc(n)}</div>`).join("");
+    setSt("公開しています…");
+    const base = slugify($("ghSlug").value) || slugify(parsed.repo);
+    let slug = base || randomSlug();
+    const editToken = crypto.randomUUID();
+    const title = `${parsed.owner}/${parsed.repo}`;
+    let ok = false;
+    for (let i = 0; i < 5; i++) {
+      const r = await sbInsert("sites", { slug, files, title, edit_token: editToken });
+      if (r.ok) { ok = true; break; }
+      if (base && i === 0 && $("ghSlug").value.trim()) throw new Error("taken");
+      slug = (base || randomSlug()) + "-" + randomSlug(3);
+    }
+    if (!ok) throw new Error("insert");
+    const u = `${VIEW_BASE}/s/${slug}/`;
+    addItem({ kind: "site", slug, url: u, title, editToken });
+    showResult($("ghResult"), u, false);
+    const notes = [];
+    if (skippedEnv) notes.push(".env は除外しました");
+    if (tooBig.length) notes.push(`4MB超の ${tooBig.length} 件は除外しました`);
+    if (tree.truncated) notes.push("ファイル数が多いため一部だけ取得しました");
+    setSt("公開しました" + (notes.length ? "（" + notes.join("／") + "）" : ""));
+    toast("公開しました");
+  } catch (e) {
+    if (e.status === 404) setSt("リポジトリが見つかりません。名前を確認するか、非公開リポジトリならトークンを入力してください", true);
+    else if (e.status === 401) setSt("GitHubトークンが無効です。トークンを確認してください", true);
+    else if (e.status === 403) setSt("GitHub APIの回数制限に達しました。トークンを入力すると上限が上がります。時間をおいて試してください", true);
+    else if (e.message === "noindex") setSt("index.html が見つかりませんでした。トップページになるファイルがあるリポジトリを指定してください", true);
+    else if (e.message === "toolarge") setSt("合計8MBを超えるため公開できません。小さいリポジトリで試してください", true);
+    else if (e.message === "taken") setSt("そのURL名は既に使われています。別のURL名にしてください", true);
+    else if (e.message === "empty") setSt("ファイルが見つかりませんでした", true);
+    else setSt("取り込みに失敗しました。時間をおいて試してください", true);
+  } finally { btn.disabled = false; btn.textContent = "取り込んで公開する"; }
+});
+
+/* ===== サーバータブ（Supabase Edge Functions） ===== */
+const SV_TOKEN_KEY = "sus-sb-token";
+const SV_REF_KEY = "sus-sb-ref";
+const SAMPLE_FN = [
+  "// Supabase Edge Functions (Deno) — そのままデプロイできます",
+  "Deno.serve((req) => {",
+  "  const url = new URL(req.url);",
+  '  const name = url.searchParams.get("name") ?? "world";',
+  "  return new Response(",
+  "    JSON.stringify({ message: `Hello, ${name}!`, at: new Date().toISOString() }),",
+  '    { headers: { "Content-Type": "application/json" } },',
+  "  );",
+  "});",
+].join("\n");
+async function mgmt(path, token, opts = {}) {
+  const res = await fetch("https://api.supabase.com/v1" + path, { ...opts, headers: { Authorization: "Bearer " + token, ...(opts.headers || {}) } });
+  return res;
+}
+$("svTest").addEventListener("click", async () => {
+  const token = $("svToken").value.trim(), ref = $("svRef").value.trim();
+  const st = $("svStatus");
+  if (!token || !ref) { st.textContent = "トークンとプロジェクトRefを入力してください"; st.classList.add("err"); return; }
+  st.textContent = "接続を確認中…"; st.classList.remove("err");
+  try {
+    const res = await mgmt(`/projects/${ref}`, token);
+    if (res.status === 401) throw new Error("unauth");
+    if (res.status === 404) throw new Error("notfound");
+    if (!res.ok) throw new Error("ng");
+    const p = await res.json();
+    st.textContent = `接続OK：プロジェクト「${p.name}」（${p.region ?? ""}）が見つかりました`;
+    toast("接続できました");
+  } catch (e) {
+    st.classList.add("err");
+    st.textContent = e.message === "unauth" ? "トークンが無効です。Supabaseダッシュボード（Account → Access Tokens）で発行した sbp_ トークンを貼ってください"
+      : e.message === "notfound" ? "そのRefのプロジェクトが見つかりません。RefはプロジェクトのダッシュボードURLに含まれる文字列です"
+      : "接続に失敗しました。時間をおいて試してください";
+  }
+});
+$("svDeploy").addEventListener("click", async () => {
+  const token = $("svToken").value.trim(), ref = $("svRef").value.trim();
+  const name = slugify($("svName").value).replace(/_/g, "-");
+  const code = $("svCode").value;
+  const st = $("svStatus");
+  const bad = (t) => { st.textContent = t; st.classList.add("err"); };
+  if (!token) return bad("Supabaseアクセストークンを入力してください");
+  if (!ref) return bad("プロジェクトRefを入力してください");
+  if (!name) return bad("関数名を入力してください（英小文字・数字・ハイフン）");
+  if (!code.trim()) return bad("コードを入力してください");
+  const btn = $("svDeploy"); btn.disabled = true; btn.textContent = "デプロイ中…"; st.classList.remove("err"); st.textContent = "デプロイしています…";
+  try {
+    const fd = new FormData();
+    fd.append("metadata", JSON.stringify({ name, entrypoint_path: "index.ts", verify_jwt: $("svVerify").checked }));
+    fd.append("file", new Blob([code], { type: "text/plain" }), "index.ts");
+    const res = await mgmt(`/projects/${ref}/functions/deploy?slug=${encodeURIComponent(name)}`, token, { method: "POST", body: fd });
+    if (res.status === 401) throw new Error("unauth");
+    if (res.status === 404) throw new Error("notfound");
+    if (!res.ok) { let m = ""; try { m = (await res.json())?.message ?? ""; } catch {} const e = new Error("ng"); e.detail = m; throw e; }
+    const fn = await res.json().catch(() => ({}));
+    const url = `https://${ref}.supabase.co/functions/v1/${name}`;
+    showResult($("svResult"), url, (fn.version ?? 1) > 1);
+    st.textContent = `デプロイ完了（バージョン ${fn.version ?? 1}）。このURLを fetch で呼べます` + ($("svVerify").checked ? "。JWT検証が有効なので、呼び出しにはログイン済みユーザーのトークンが必要です" : "");
+    toast("デプロイしました");
+  } catch (e) {
+    if (e.message === "unauth") bad("トークンが無効です。sbp_ トークンを確認してください");
+    else if (e.message === "notfound") bad("プロジェクトが見つかりません。Refを確認してください");
+    else bad("デプロイに失敗しました" + (e.detail ? "：" + e.detail : "。コードと関数名を確認してください"));
+  } finally { btn.disabled = false; btn.textContent = "デプロイする"; }
+});
+
+/* ===== ログイン（Supabase Auth / OAuth）＆クラウド履歴 ===== */
+const AUTH_KEY = "sus-auth-v1";
+const CLOUD_OK_KEY = "sus-cloud-ok";
+let session = null;
+try { session = JSON.parse(localStorage.getItem(AUTH_KEY) || "null"); } catch { session = null; }
+function persistSession() { if (session) localStorage.setItem(AUTH_KEY, JSON.stringify(session)); else localStorage.removeItem(AUTH_KEY); }
+function loginWith(provider) {
+  const redirect = location.href.split("#")[0];
+  location.href = `${SB_URL}/auth/v1/authorize?provider=${provider}&redirect_to=${encodeURIComponent(redirect)}`;
+}
+async function refreshSession() {
+  if (!session?.refresh_token) return false;
+  const res = await fetch(`${SB_URL}/auth/v1/token?grant_type=refresh_token`, { method: "POST", headers: { apikey: SB_KEY, "Content-Type": "application/json" }, body: JSON.stringify({ refresh_token: session.refresh_token }) });
+  if (!res.ok) return false;
+  const j = await res.json();
+  session = { ...session, access_token: j.access_token, refresh_token: j.refresh_token, expires_at: Date.now() + (j.expires_in ?? 3600) * 1000 };
+  persistSession(); return true;
+}
+async function ensureSession() {
+  if (!session) return false;
+  if (session.expires_at && Date.now() > session.expires_at - 60000) return refreshSession();
+  return true;
+}
+async function fetchAuthUser() {
+  if (!(await ensureSession())) return;
+  const res = await fetch(`${SB_URL}/auth/v1/user`, { headers: { apikey: SB_KEY, Authorization: "Bearer " + session.access_token } });
+  if (res.status === 401) { if (await refreshSession()) return fetchAuthUser(); session = null; persistSession(); renderAuth(); return; }
+  if (!res.ok) return;
+  const u = await res.json();
+  session.user_id = u.id; session.email = u.email || u.user_metadata?.email || "";
+  persistSession(); renderAuth();
+}
+function renderAuth() {
+  const who = $("authWho"), btns = $("authBtns");
+  if (session) {
+    who.innerHTML = `<b>ログイン中</b> — ${esc(session.email || "（メール未登録）")}。履歴はこの端末に加えてクラウドにも保存できます`;
+    btns.innerHTML = `<button class="btn btn-outline btn-sm" id="cloudPushBtn">クラウドへ保存</button>
+      <button class="btn btn-outline btn-sm" id="cloudPullBtn">クラウドから読込</button>
+      <button class="btn btn-outline btn-sm" id="logoutBtn">ログアウト</button>`;
+    $("cloudPushBtn").addEventListener("click", () => cloudPush(false));
+    $("cloudPullBtn").addEventListener("click", () => cloudPull(false));
+    $("logoutBtn").addEventListener("click", async () => {
+      try { await fetch(`${SB_URL}/auth/v1/logout`, { method: "POST", headers: { apikey: SB_KEY, Authorization: "Bearer " + session.access_token } }); } catch {}
+      session = null; persistSession(); renderAuth(); toast("ログアウトしました");
+    });
+  } else {
+    who.innerHTML = `<b>アカウント</b> — ログインすると履歴をクラウドに保存できます（端末を変えても見られます）`;
+    btns.innerHTML = `<button class="btn btn-outline btn-sm" id="loginGithub">GitHubでログイン</button>
+      <button class="btn btn-outline btn-sm" id="loginGoogle">Googleでログイン</button>`;
+    $("loginGithub").addEventListener("click", () => loginWith("github"));
+    $("loginGoogle").addEventListener("click", () => loginWith("google"));
+  }
+}
+async function sbAuthFetch(path, opts = {}) {
+  return fetch(SB_URL + "/rest/v1/" + path, { ...opts, headers: { apikey: SB_KEY, Authorization: "Bearer " + session.access_token, "Content-Type": "application/json", ...(opts.headers || {}) } });
+}
+function cloudTableMissing(res, body) { return res.status === 404 || body?.code === "42P01" || body?.code === "PGRST205" || /user_items/.test(body?.message ?? ""); }
+async function cloudPush(silent) {
+  if (!session?.user_id) { if (!silent) toast("先にログインしてください", true); return false; }
+  if (!(await ensureSession())) { if (!silent) toast("セッションの期限が切れました。再ログインしてください", true); return false; }
+  const res = await sbAuthFetch("user_items", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify({ user_id: session.user_id, items: loadItems(), updated_at: new Date().toISOString() }) });
+  if (res.ok) { localStorage.setItem(CLOUD_OK_KEY, "1"); if (!silent) toast("クラウドに保存しました"); return true; }
+  const body = await res.json().catch(() => null);
+  if (cloudTableMissing(res, body)) { $("cloudHelp").classList.remove("hidden"); if (!silent) toast("履歴用テーブルが未作成です。下の手順で作成してください", true); return false; }
+  if (!silent) toast("クラウド保存に失敗しました", true);
+  return false;
+}
+async function cloudPull(silent) {
+  if (!session?.user_id) return false;
+  if (!(await ensureSession())) return false;
+  const res = await sbAuthFetch(`user_items?select=items&user_id=eq.${encodeURIComponent(session.user_id)}`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    if (cloudTableMissing(res, body)) { $("cloudHelp").classList.remove("hidden"); if (!silent) toast("履歴用テーブルが未作成です。下の手順で作成してください", true); }
+    else if (!silent) toast("クラウドからの読み込みに失敗しました", true);
+    return false;
+  }
+  const rows = await res.json().catch(() => []);
+  const items = rows[0]?.items;
+  if (Array.isArray(items)) {
+    if (items.length) { saveItems(items); if (!silent) toast("クラウドの履歴を読み込みました"); }
+    else if (!silent) toast("クラウドに履歴はまだありません");
+    localStorage.setItem(CLOUD_OK_KEY, "1");
+    return true;
+  }
+  return false;
+}
+let cloudTimer;
+function scheduleCloudPush() {
+  if (!session || !localStorage.getItem(CLOUD_OK_KEY)) return;
+  clearTimeout(cloudTimer); cloudTimer = setTimeout(() => cloudPush(true), 1500);
+}
+const _origSaveItems = saveItems;
+saveItems = function (items) { _origSaveItems(items); scheduleCloudPush(); };
+function initFeatures() {
+  /* GitHub */
+  $("ghToken").value = localStorage.getItem(GH_TOKEN_KEY) || "";
+  $("ghToken").addEventListener("change", () => localStorage.setItem(GH_TOKEN_KEY, $("ghToken").value.trim()));
+  /* Server */
+  $("svToken").value = localStorage.getItem(SV_TOKEN_KEY) || "";
+  $("svRef").value = localStorage.getItem(SV_REF_KEY) || "vxdfcrgpwjsfjsdpdlzj";
+  $("svCode").value = SAMPLE_FN;
+  $("svToken").addEventListener("change", () => localStorage.setItem(SV_TOKEN_KEY, $("svToken").value.trim()));
+  $("svRef").addEventListener("change", () => localStorage.setItem(SV_REF_KEY, $("svRef").value.trim()));
+  /* Auth callback (implicit flow) */
+  if (location.hash.includes("access_token=")) {
+    const q = new URLSearchParams(location.hash.slice(1));
+    const at = q.get("access_token"), rt = q.get("refresh_token"), ei = Number(q.get("expires_in") || 3600);
+    if (at) {
+      session = { access_token: at, refresh_token: rt, expires_at: Date.now() + ei * 1000, user_id: "", email: "" };
+      persistSession();
+      history.replaceState(null, "", location.href.split("#")[0]);
+      toast("ログインしました");
+    }
+  }
+  renderAuth();
+  $("cloudSqlCopy").addEventListener("click", () => { navigator.clipboard.writeText($("cloudSql").textContent); toast("SQLをコピーしました"); });
+  if (session) { fetchAuthUser().then(() => cloudPull(true)); }
+}
+
 /* ===== 使い方・FAQ ===== */
 const HOWTO = [
   { icon: I.file, t: "HTMLページ", path: "/p/xxx", note: "CSS・JavaScript埋め込み可。最大500KB。", steps: ["HTMLタブにコードを貼る", "URL名を指定（任意。空欄なら自動生成）", "「公開する」を押してURLをシェア", "履歴の「編集」で後から差し替え可能"] },
   { icon: I.zip, t: "ZIPサイト", path: "/s/xxx", note: "合計8MBまで。ページごとのURLも変更できます。", steps: ["ZIP・ファイル・フォルダを選ぶ", "index.html がトップページになります", "「公開する」を押してURLをシェア", "履歴の「編集」でファイルを上書き可能"] },
   { icon: I.server, t: "モックAPI", path: "/api/public/e/xxx", note: "CORS対応済み。最大100KB。", steps: ["レスポンスボディ（JSON等）を入力", "メソッド・Content-Type・ステータスを選択", "「APIを公開」して fetch で呼び出す", "履歴の「編集」でレスポンスを更新可能"] },
   { icon: I.bot, t: "AIアシスタント", path: "Gemini", note: "APIキーはこのブラウザだけに保存されます。", steps: ["Gemini APIキーを入力", "やりたいことと対象を選ぶ", "指示を書いて「AIに頼む」", "改善案は確認してから保存を押す"] },
+  { icon: I.git, t: "GitHub公開", path: "/s/xxx", note: ".env ファイルは取り込みから除外されます。合計8MBまで。", steps: ["リポジトリ名（owner/repo）を入力", "非公開なら自分のGitHubトークンを入力", "「取り込んで公開する」を押す", "履歴から編集・上書きも可能"] },
+  { icon: I.rocket, t: "サーバー", path: "/functions/v1/xxx", note: "Supabase Edge Functions（Deno）にデプロイします。", steps: ["Supabaseアクセストークンを入力", "関数名とコード（Deno）を書く", "「デプロイする」を押す", "発行されたURLを fetch で呼び出す"] },
 ];
 $("howtoGrid").innerHTML = HOWTO.map((g) => `
   <div class="howto-cell">
@@ -1051,10 +1442,13 @@ $("howtoGrid").innerHTML = HOWTO.map((g) => `
   </div>`).join("");
 const FAQ = [
   { q: "公開後に内容を変更できますか？", a: "はい。同じブラウザで作成したものは「保存された公開URL」の「編集」ボタンから差し替えできます。編集キーはこのブラウザに保存されているため、別ブラウザからは編集できません。" },
-  { q: "動的なサーバー処理はできますか？", a: "APIはモックとして固定のレスポンスを返します。フロントエンドの開発やテスト用途に最適です。HTMLページ内のJavaScriptはそのまま動きます。" },
+  { q: "動的なサーバー処理はできますか？", a: "モックAPIは固定のレスポンスを返すだけですが、「サーバー」タブではSupabase Edge Functions（Deno）に本物のサーバーコードをデプロイできます。HTMLページ内のJavaScriptもそのまま動きます。" },
   { q: "有効期限はありますか？", a: "特にありません。URLを知っている人だけがアクセスできます。" },
   { q: "料金はかかりますか？", a: "かかりません。登録も不要です。AI機能だけ、ご自身のGemini APIキーが必要です（キーはブラウザ内にのみ保存されます）。" },
   { q: "この静的版と通常版の違いは？", a: "見た目と機能は同じです。静的版はこのファイル1枚で動き、データの保存とURLの配信は公開サーバー（simple-url-server.lovable.app）が担当します。" },
+  { q: "GitHubのリポジトリを公開する際の注意は？", a: "中身がそのまま静的サイトとして公開されます。ビルドが必要なプロジェクトはビルド済みファイルが入ったリポジトリを指定してください。.env は除外されます。非公開リポジトリにはご自身のGitHubトークンが必要です（ブラウザ内にのみ保存）。" },
+  { q: "ログインすると何が変わりますか？", a: "公開履歴をクラウドに保存でき、端末を変えても同じ履歴が見られます。ログインはSupabase側でプロバイダー（GitHub / Google）が有効な場合に使えます。有効化と履歴用テーブルの作成は初回だけ必要で、手順はログイン欄の下に表示されます。" },
+  { q: "サーバー機能の料金は？", a: "デプロイ先はご自身のSupabaseプロジェクトで、無料枠の範囲なら追加料金はかかりません。このアプリ側の利用料もありません。" },
 ];
 $("faqList").innerHTML = FAQ.map((f) => `
   <details class="faq-item"><summary>${esc(f.q)} ${I.plus}</summary><p>${esc(f.a)}</p></details>`).join("");
@@ -1063,6 +1457,7 @@ $("faqList").innerHTML = FAQ.map((f) => `
 setTab("html");
 renderHistory();
 refreshAiTargets();
+initFeatures();
 </script>
 </body>
 </html>
