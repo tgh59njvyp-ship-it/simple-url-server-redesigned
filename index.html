@@ -392,6 +392,13 @@ footer{background:var(--ink);color:var(--paper)}
             <div id="zipPageList"></div>
             <details class="files"><summary id="zipAllSummary">すべてのファイル</summary><div class="files-list" id="zipAllList"></div></details>
           </div>
+          <div class="grid2">
+            <div class="field"><label class="flabel" for="zipMode">公開方法</label>
+              <select class="input" id="zipMode"><option value="static">そのまま公開（静的ファイル）</option><option value="build">TypeScriptをビルドして公開</option></select></div>
+            <div class="field hidden" id="zipProjectDirWrap"><label class="flabel" for="zipProjectDir">プロジェクトフォルダ — 任意</label>
+              <input class="input mono" id="zipProjectDir" placeholder="例：app（自動判定できれば空欄でOK）"></div>
+          </div>
+          <p class="help hidden" id="zipBuildHelp" style="margin:0">Vite型のTypeScriptプロジェクトを、このブラウザの中でビルドして成果物だけを公開します。ビルド時は上のページURL変更は反映されません。</p>
           <div class="field" id="zipSlugField">
             <label class="flabel" for="zipSlug">URL name — 任意</label>
             <div class="slug-row"><span class="slug-prefix">/s/</span><input class="input mono" id="zipSlug" placeholder="my-site" maxlength="40"></div>
@@ -501,6 +508,13 @@ footer{background:var(--ink);color:var(--paper)}
           <div class="field"><label class="flabel" for="ghBranch">Branch — 任意</label>
             <input class="input mono" id="ghBranch" placeholder="空欄なら既定ブランチ"></div>
           <p class="help" style="margin:0">公開リポジトリだけならトークンは不要です。非公開リポジトリや回数制限の緩和には、右上の「設定」からGitHubトークンを入れてください。入れると、あなたのリポジトリ一覧が自動で取得され、上の欄から選べるようになります。</p>
+          <div class="grid2">
+            <div class="field"><label class="flabel" for="ghMode">公開方法</label>
+              <select class="input" id="ghMode"><option value="static">そのまま公開（静的ファイル）</option><option value="build">TypeScriptをビルドして公開</option></select></div>
+            <div class="field hidden" id="ghProjectDirWrap"><label class="flabel" for="ghProjectDir">プロジェクトフォルダ — 任意</label>
+              <input class="input mono" id="ghProjectDir" placeholder="例：app（自動判定できれば空欄でOK）"></div>
+          </div>
+          <p class="help hidden" id="ghBuildHelp" style="margin:0">Vite型のTypeScriptプロジェクトを、このブラウザの中でビルドして成果物だけを公開します。初回はビルドエンジンの読み込み（約12MB）に少し時間がかかります。依存パッケージは公開CDN（esm.sh）から読み込む形になります。</p>
           <div class="field">
             <label class="flabel" for="ghSlug">URL name — 任意</label>
             <div class="slug-row"><span class="slug-prefix">/s/</span><input class="input mono" id="ghSlug" placeholder="my-site" maxlength="40"></div>
@@ -923,10 +937,17 @@ $("zipCancelEdit").addEventListener("click", () => {
 $("zipPublish").addEventListener("click", async () => {
   if (!zipFiles) return toast("ファイルを選んでください", true);
   const btn = $("zipPublish"); btn.disabled = true; btn.textContent = "アップロード中…";
+  let filesToPublish = zipFiles;
+  if ($("zipMode").value === "build") {
+    btn.textContent = "ビルド中…";
+    try { filesToPublish = await buildSiteFiles(zipFiles, $("zipProjectDir").value.trim()); }
+    catch (e) { toast(e.message, true); btn.disabled = !zipFiles; btn.textContent = zipEditing ? "上書き保存" : "公開する"; return; }
+    btn.textContent = "アップロード中…";
+  }
   try {
     const title = zipName.replace(/\.zip$/i, "");
     if (zipEditing) {
-      const ok = await sbRpc("update_site", { _slug: zipEditing.slug, _token: zipEditing.token, _files: zipFiles, _title: title });
+      const ok = await sbRpc("update_site", { _slug: zipEditing.slug, _token: zipEditing.token, _files: filesToPublish, _title: title });
       if (!ok) throw new Error("update");
       const u = `${VIEW_BASE}/s/${zipEditing.slug}/`;
       addItem({ kind: "site", slug: zipEditing.slug, url: u, title, editToken: zipEditing.token });
@@ -938,7 +959,7 @@ $("zipPublish").addEventListener("click", async () => {
     const token = crypto.randomUUID();
     let done = false;
     for (let i = 0; i < 5; i++) {
-      const r = await sbInsert("sites", { slug, files: zipFiles, title, edit_token: token });
+      const r = await sbInsert("sites", { slug, files: filesToPublish, title, edit_token: token });
       if (r.ok) { done = true; break; }
       if (base) { toast("そのURL名は既に使われています", true); return; }
       slug = randomSlug();
@@ -1223,7 +1244,12 @@ $("ghPublish").addEventListener("click", async () => {
       done += chunk.length;
       setSt(`取得中… ${done}/${blobs.length} ファイル`);
     }
-    const files = normalizeZip(out);
+    let files = normalizeZip(out);
+    if ($("ghMode").value === "build") {
+      setSt("TypeScriptをビルドしています…（初回はビルドエンジンの読み込みで少し時間がかかります）");
+      files = await buildSiteFiles(files, $("ghProjectDir").value.trim());
+      setSt("ビルド完了。公開しています…");
+    }
     if (!files["index.html"]) throw new Error("noindex");
     $("ghFilesWrap").classList.remove("hidden");
     $("ghFilesSummary").textContent = `取得したファイル（${Object.keys(files).length}）`;
@@ -1258,6 +1284,7 @@ $("ghPublish").addEventListener("click", async () => {
     else if (e.message === "toolarge") setSt("合計8MBを超えるため公開できません。小さいリポジトリで試してください", true);
     else if (e.message === "taken") setSt("そのURL名は既に使われています。別のURL名にしてください", true);
     else if (e.message === "empty") setSt("ファイルが見つかりませんでした", true);
+    else if (e.message && (e.message.startsWith("ビルド") || e.message.startsWith("TypeScript") || e.message.startsWith("指定フォルダ"))) setSt(e.message, true);
     else setSt("取り込みに失敗しました。時間をおいて試してください", true);
   } finally { btn.disabled = false; btn.textContent = "取り込んで公開する"; }
 });
@@ -1330,6 +1357,137 @@ $("svDeploy").addEventListener("click", async () => {
     else bad("デプロイに失敗しました" + (e.detail ? "：" + e.detail : "。コードと関数名を確認してください"));
   } finally { btn.disabled = false; btn.textContent = "デプロイする"; }
 });
+
+/* ===== TypeScriptビルド公開（esbuild-wasm・ブラウザ内ビルド） ===== */
+const ESBUILD_VER = "0.24.2";
+let esbuildReady = null;
+function loadEsbuild() {
+  if (esbuildReady) return esbuildReady;
+  esbuildReady = (async () => {
+    if (!window.esbuild) {
+      await new Promise((resolve, reject) => {
+        const sc = document.createElement("script");
+        sc.src = `https://cdn.jsdelivr.net/npm/esbuild-wasm@${ESBUILD_VER}/lib/browser.min.js`;
+        sc.onload = resolve;
+        sc.onerror = () => reject(new Error("load"));
+        document.head.appendChild(sc);
+      });
+    }
+    await window.esbuild.initialize({ wasmURL: `https://cdn.jsdelivr.net/npm/esbuild-wasm@${ESBUILD_VER}/esbuild.wasm`, worker: true });
+    return window.esbuild;
+  })();
+  esbuildReady.catch(() => { esbuildReady = null; });
+  return esbuildReady;
+}
+function normalizePath(p) {
+  const parts = [];
+  for (const seg of p.split("/")) {
+    if (seg === "." || seg === "") continue;
+    if (seg === "..") parts.pop(); else parts.push(seg);
+  }
+  return parts.join("/");
+}
+function findTsProjects(map) {
+  const roots = new Set([""]);
+  for (const p of map.keys()) { const seg = p.split("/"); if (seg.length === 2 && seg[1] === "index.html") roots.add(seg[0]); }
+  return [...roots].filter((r) => {
+    const b = map.get((r ? r + "/" : "") + "index.html");
+    if (!b) return false;
+    const html = new TextDecoder().decode(b);
+    return /<script[^>]*type="module"[^>]*src="[^"]+\.tsx?["']/i.test(html) || /<script[^>]*src="[^"]+\.tsx?["'][^>]*type="module"/i.test(html);
+  });
+}
+async function buildProject(filesMap, root, esbuildImpl) {
+  const prefix = root ? root + "/" : "";
+  const htmlBytes = filesMap.get(prefix + "index.html");
+  if (!htmlBytes) throw new Error("プロジェクトの index.html が見つかりませんでした");
+  const html = new TextDecoder().decode(htmlBytes);
+  const m = html.match(/<script[^>]*type="module"[^>]*src="([^"]+)"[^>]*>/i);
+  if (!m) throw new Error("index.html に TypeScript のエントリ（script type=\"module\" で .ts を読み込む記述）が見つかりませんでした");
+  const entryRel = m[1].replace(/^\.\//, "").replace(/^\//, "");
+  const entryKey = prefix + entryRel;
+  if (!filesMap.has(entryKey)) throw new Error(`エントリファイル ${entryRel} が見つかりませんでした`);
+  let deps = {};
+  const pkgBytes = filesMap.get(prefix + "package.json");
+  if (pkgBytes) { try { deps = { ...(JSON.parse(new TextDecoder().decode(pkgBytes)).dependencies || {}) }; } catch {} }
+  const memPlugin = {
+    name: "memfs",
+    setup(build) {
+      build.onResolve({ filter: /.*/ }, (args) => {
+        if (args.kind === "entry-point") return { path: args.path, namespace: "mem" };
+        if (args.path.startsWith(".") || args.path.startsWith("/")) {
+          const importerDir = args.importer.replace(/[^/]*$/, "");
+          const p = args.path.startsWith("/") ? prefix + args.path.slice(1) : normalizePath(importerDir + args.path);
+          const candidates = [p, p + ".ts", p + ".tsx", p + ".js", p + ".jsx", p + ".css", p + ".json", p + "/index.ts", p + "/index.tsx", p + "/index.js"];
+          for (const c of candidates) if (filesMap.has(c)) return { path: c, namespace: "mem" };
+          return { errors: [{ text: `ファイルが見つかりません: ${args.path}（${args.importer} から）` }] };
+        }
+        const pkgName = args.path.startsWith("@") ? args.path.split("/").slice(0, 2).join("/") : args.path.split("/")[0];
+        const ver = String(deps[pkgName] || "latest").replace(/^[\^~]/, "");
+        const rest = args.path.slice(pkgName.length);
+        return { path: `https://esm.sh/${pkgName}@${ver}${rest}`, external: true };
+      });
+      build.onLoad({ filter: /.*/, namespace: "mem" }, (args) => {
+        const bytes = filesMap.get(args.path);
+        if (!bytes) return { errors: [{ text: `読み込めません: ${args.path}` }] };
+        const ext = args.path.split(".").pop().toLowerCase();
+        const loader = { ts: "ts", tsx: "tsx", js: "js", jsx: "jsx", css: "css", json: "json", svg: "file", png: "file", jpg: "file", jpeg: "file", gif: "file", webp: "file", ico: "file", woff: "file", woff2: "file", txt: "text" }[ext] || "text";
+        return { contents: bytes, loader };
+      });
+    },
+  };
+  let result;
+  try {
+    result = await esbuildImpl.build({
+      entryPoints: [entryKey], bundle: true, format: "esm", platform: "browser",
+      target: ["es2020"], write: false, outdir: "out",
+      assetNames: "assets/[name]-[hash]", entryNames: "[name]",
+      plugins: [memPlugin], logLevel: "silent",
+    });
+  } catch (e) {
+    const detail = (e.errors && e.errors[0] && e.errors[0].text) || e.message || "";
+    throw new Error("ビルドに失敗しました：" + detail + "。コードとプロジェクト構成を確認してください");
+  }
+  const out = new Map();
+  let jsName = "", cssName = "";
+  for (const f of result.outputFiles) {
+    const rel = f.path.replace(/^(?:.*\/)?out\//, "");
+    out.set(rel, f.contents);
+    if (rel.endsWith(".js")) jsName = rel;
+    if (rel.endsWith(".css")) cssName = rel;
+  }
+  if (!jsName) throw new Error("ビルド結果にJavaScriptが含まれていませんでした");
+  let newHtml = html.replace(m[0], `<script type="module" src="./${jsName}"><\/script>`);
+  if (cssName) {
+    const link = `<link rel="stylesheet" href="./${cssName}">`;
+    newHtml = newHtml.includes("</head>") ? newHtml.replace("</head>", link + "\n</head>") : link + newHtml;
+  }
+  out.set("index.html", new TextEncoder().encode(newHtml));
+  for (const [p, b] of filesMap) {
+    if (p.startsWith(prefix + "public/")) out.set(p.slice(prefix.length + 7), b);
+  }
+  return out;
+}
+async function buildSiteFiles(siteFiles, dirHint) {
+  const map = new Map();
+  for (const [p, f] of Object.entries(siteFiles)) map.set(p, b64ToU8(f.b));
+  const roots = findTsProjects(map);
+  let root = String(dirHint || "").replace(/^\/+|\/+$/g, "");
+  if (root) {
+    if (!roots.includes(root)) throw new Error(`指定フォルダ「${root}」にTypeScriptプロジェクトが見つかりませんでした。index.html が .ts を読み込んでいるフォルダを指定してください`);
+  } else if (roots.length === 1) root = roots[0];
+  else if (!roots.length) throw new Error("TypeScriptプロジェクトが見つかりませんでした。index.html から .ts ファイルを読み込んでいるプロジェクトを取り込んでください");
+  else throw new Error("TypeScriptプロジェクトが複数あります（" + roots.map((r) => r || "ルート").join("、") + "）。プロジェクトフォルダを指定してください");
+  let esbuild;
+  try { esbuild = await loadEsbuild(); }
+  catch { throw new Error("ビルドエンジン（esbuild）を読み込めませんでした。通信環境を確認して、もう一度試してください"); }
+  const built = await buildProject(map, root, esbuild);
+  const out = {};
+  let total = 0;
+  for (const [p, bytes] of built) { out[p] = { t: mimeFor(p), b: u8ToB64(bytes) }; total += bytes.length; }
+  if (total > MAX_BYTES) throw new Error("ビルド結果が8MBを超えています。プロジェクトのファイルサイズを減らしてください");
+  return out;
+}
 
 /* ===== 設定メニュー／リポジトリ自動取得／AIサーバー生成 ===== */
 const GH_REPOS_KEY = "sus-gh-repos";
@@ -1453,15 +1611,23 @@ function initFeatures() {
   if (localStorage.getItem(GH_TOKEN_KEY)) loadMyRepos(false);
   /* AIサーバー生成 */
   $("svAiGen").addEventListener("click", svAiGenerate);
+  /* ビルドモード切替 */
+  const bindMode = (sel, wrap, help) => $(sel).addEventListener("change", () => {
+    const on = $(sel).value === "build";
+    $(wrap).classList.toggle("hidden", !on);
+    $(help).classList.toggle("hidden", !on);
+  });
+  bindMode("ghMode", "ghProjectDirWrap", "ghBuildHelp");
+  bindMode("zipMode", "zipProjectDirWrap", "zipBuildHelp");
 }
 
 /* ===== 使い方・FAQ ===== */
 const HOWTO = [
   { icon: I.file, t: "HTMLページ", path: "/p/xxx", note: "CSS・JavaScript埋め込み可。最大500KB。", steps: ["HTMLタブにコードを貼る", "URL名を指定（任意。空欄なら自動生成）", "「公開する」を押してURLをシェア", "履歴の「編集」で後から差し替え可能"] },
-  { icon: I.zip, t: "ZIPサイト", path: "/s/xxx", note: "合計8MBまで。ページごとのURLも変更できます。", steps: ["ZIP・ファイル・フォルダを選ぶ", "index.html がトップページになります", "「公開する」を押してURLをシェア", "履歴の「編集」でファイルを上書き可能"] },
+  { icon: I.zip, t: "ZIPサイト", path: "/s/xxx", note: "合計8MBまで。TypeScriptプロジェクトはビルドして公開も可能。ページごとのURLも変更できます。", steps: ["ZIP・ファイル・フォルダを選ぶ", "index.html がトップページになります", "「公開する」を押してURLをシェア", "履歴の「編集」でファイルを上書き可能"] },
   { icon: I.server, t: "モックAPI", path: "/api/public/e/xxx", note: "CORS対応済み。最大100KB。", steps: ["レスポンスボディ（JSON等）を入力", "メソッド・Content-Type・ステータスを選択", "「APIを公開」して fetch で呼び出す", "履歴の「編集」でレスポンスを更新可能"] },
   { icon: I.bot, t: "AIアシスタント", path: "Gemini", note: "APIキーはこのブラウザだけに保存されます。", steps: ["Gemini APIキーを入力", "やりたいことと対象を選ぶ", "指示を書いて「AIに頼む」", "改善案は確認してから保存を押す"] },
-  { icon: I.git, t: "GitHub公開", path: "/s/xxx", note: ".env ファイルは取り込みから除外されます。合計8MBまで。", steps: ["リポジトリ名（owner/repo）を入力", "右上の「設定」でGitHubトークンを入れると、自分のリポジトリが自動で並ぶ", "「取り込んで公開する」を押す", "履歴から編集・上書きも可能"] },
+  { icon: I.git, t: "GitHub公開", path: "/s/xxx", note: ".env ファイルは取り込みから除外されます。合計8MBまで。TypeScriptはビルドして公開可能。", steps: ["リポジトリ名（owner/repo）を入力", "右上の「設定」でGitHubトークンを入れると、自分のリポジトリが自動で並ぶ", "「取り込んで公開する」を押す", "履歴から編集・上書きも可能"] },
   { icon: I.rocket, t: "サーバー", path: "/functions/v1/xxx", note: "Supabase Edge Functions（Deno）にデプロイします。", steps: ["右上の「設定」でSupabaseトークンを入力", "作りたい内容を書いてAIにコードを生成させる（手書きも可）", "「デプロイする」を押す", "発行されたURLを fetch で呼び出す"] },
 ];
 $("howtoGrid").innerHTML = HOWTO.map((g) => `
@@ -1476,7 +1642,8 @@ const FAQ = [
   { q: "有効期限はありますか？", a: "特にありません。URLを知っている人だけがアクセスできます。" },
   { q: "料金はかかりますか？", a: "かかりません。登録も不要です。AI機能だけ、ご自身のGemini APIキーが必要です（キーはブラウザ内にのみ保存されます）。" },
   { q: "この静的版と通常版の違いは？", a: "見た目と機能は同じです。静的版はこのファイル1枚で動き、データの保存とURLの配信は公開サーバー（simple-url-server.lovable.app）が担当します。" },
-  { q: "GitHubのリポジトリを公開する際の注意は？", a: "中身がそのまま静的サイトとして公開されます。ビルドが必要なプロジェクトはビルド済みファイルが入ったリポジトリを指定してください。.env は除外されます。非公開リポジトリにはご自身のGitHubトークンが必要です（ブラウザ内にのみ保存）。" },
+  { q: "TypeScriptのサイトも公開できますか？", a: "はい。GitHub／ZIPの取り込みで「TypeScriptをビルドして公開」を選ぶと、このブラウザの中でビルドしてから成果物だけを公開します。Vite型のプロジェクト（index.html が .ts を読み込んでいるもの）に対応し、プロジェクトがサブフォルダ（例：app）にある場合は自動判定、またはフォルダ名の指定ができます。Reactなどの依存パッケージは公開CDN（esm.sh）から読み込む形になります。" },
+  { q: "GitHubのリポジトリを公開する際の注意は？", a: "中身がそのまま静的サイトとして公開されます。TypeScriptなどビルドが必要なプロジェクトは、公開方法で「TypeScriptをビルドして公開」を選べばこのブラウザ内でビルドできます。.env は除外されます。非公開リポジトリにはご自身のGitHubトークンが必要です（ブラウザ内にのみ保存）。" },
   { q: "サーバー機能の料金は？", a: "デプロイ先はご自身のSupabaseプロジェクトで、無料枠の範囲なら追加料金はかかりません。このアプリ側の利用料もありません。" },
 ];
 $("faqList").innerHTML = FAQ.map((f) => `
