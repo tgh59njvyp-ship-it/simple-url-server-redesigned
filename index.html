@@ -247,6 +247,17 @@ footer{background:var(--ink);color:var(--paper)}
 @media(min-width:640px){.grid2{grid-template-columns:1fr 1fr}}
 .mt{margin-top:16px}
 
+.logo-name{white-space:nowrap}
+#settingsOpen{flex:none;white-space:nowrap}
+.pill-free{flex:none;white-space:nowrap}
+@media(max-width:560px){.pill-free{display:none}}
+.sheet-backdrop{position:fixed;inset:0;background:rgba(28,27,23,.45);z-index:80}
+.sheet{position:fixed;z-index:81;background:var(--paper);border-top:2px solid var(--ink);left:0;right:0;bottom:0;max-height:88vh;overflow-y:auto;padding:20px 16px 28px}
+@media(min-width:640px){.sheet{left:50%;right:auto;bottom:auto;top:50%;transform:translate(-50%,-50%);width:min(580px,94vw);max-height:86vh;border:1px solid var(--line-strong);border-radius:var(--radius);padding:24px}}
+.sheet-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.sheet-head h3{margin:0;font-size:20px;font-weight:900}
+.set-block{border-top:1px solid var(--line);padding:18px 0 4px;margin-top:18px}
+.set-title{font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:var(--brand);margin:0 0 12px}
 .status-line{font-size:13px;color:var(--muted);min-height:20px}
 .status-line.err{color:var(--brand)}
 .chk{display:flex;gap:10px;align-items:center;font-size:14px;font-weight:500;cursor:pointer}
@@ -256,6 +267,44 @@ footer{background:var(--ink);color:var(--paper)}
 <body>
 
 <div id="toast" role="status"></div>
+<div class="sheet-backdrop hidden" id="settingsBackdrop"></div>
+<div class="sheet hidden" id="settingsSheet" role="dialog" aria-modal="true" aria-label="設定">
+  <div class="sheet-head"><h3>設定</h3><button class="btn btn-outline" id="settingsClose" style="height:36px;padding:0 14px;font-size:13px">閉じる</button></div>
+  <p class="help" style="margin:0">トークンはすべて、このブラウザの中だけに保存されます（サーバーには送られません）。</p>
+  <div class="set-block">
+    <p class="set-title">GitHub</p>
+    <div class="field"><label class="flabel" for="setGhToken">GitHub Token</label>
+      <input class="input mono" type="password" id="setGhToken" placeholder="github_pat_... / ghp_...">
+      <p class="help" style="margin:0">保存すると、あなたのリポジトリ一覧を自動で取得して「GitHub」タブで選べるようになります。非公開リポジトリの公開にも使います。<a href="https://github.com/settings/tokens" target="_blank" rel="noreferrer">トークンを発行する</a>（読み取り権限だけでOK）</p></div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px">
+      <button class="btn btn-primary" id="setGhSave">保存してリポジトリを取得</button>
+      <span class="status-line" id="setGhStatus"></span>
+    </div>
+  </div>
+  <div class="set-block">
+    <p class="set-title">Supabase — サーバー構築用</p>
+    <div class="grid2">
+      <div class="field"><label class="flabel" for="setSbToken">Supabase Access Token</label>
+        <input class="input mono" type="password" id="setSbToken" placeholder="sbp_...">
+        <p class="help" style="margin:0"><a href="https://supabase.com/dashboard/account/tokens" target="_blank" rel="noreferrer">トークンを取得する</a></p></div>
+      <div class="field"><label class="flabel" for="setSbRef">Project Ref</label>
+        <input class="input mono" id="setSbRef" placeholder="vxdfcrgpwjsfjsdpdlzj"></div>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px">
+      <button class="btn btn-primary" id="setSbSave">保存する</button>
+      <button class="btn btn-outline" id="setSbTest">接続テスト</button>
+      <span class="status-line" id="setSbStatus"></span>
+    </div>
+    <p class="help">「サーバー」タブでAIが生成したコードは、このトークンでこのプロジェクトにデプロイされます。</p>
+  </div>
+  <div class="set-block">
+    <p class="set-title">AI — Gemini</p>
+    <div class="field"><label class="flabel" for="setAiKey">Gemini API Key</label>
+      <input class="input mono" type="password" id="setAiKey" placeholder="AIza...">
+      <p class="help" style="margin:0">「AI」タブと、「サーバー」タブのAI生成で使います。<a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">AI Studioで無料で取得</a></p></div>
+  </div>
+</div>
+
 
 <!-- Nav -->
 <div class="nav">
@@ -267,6 +316,7 @@ footer{background:var(--ink);color:var(--paper)}
     <nav class="nav-links">
       <a href="#history">履歴</a><a href="#howto">使い方</a><a href="#faq">よくある質問</a>
     </nav>
+    <button class="btn btn-outline" id="settingsOpen" style="height:36px;padding:0 14px;font-size:13px"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="4" y1="21" y2="14"/><line x1="4" x2="4" y1="10" y2="3"/><line x1="12" x2="12" y1="21" y2="12"/><line x1="12" x2="12" y1="8" y2="3"/><line x1="20" x2="20" y1="21" y2="16"/><line x1="20" x2="20" y1="12" y2="3"/><line x1="2" x2="6" y1="14" y2="14"/><line x1="10" x2="14" y1="8" y2="8"/><line x1="18" x2="22" y1="16" y2="16"/></svg>設定</button>
     <span class="pill-free"><span class="dot"></span>無料・登録不要</span>
   </div>
 </div>
@@ -444,13 +494,13 @@ footer{background:var(--ink);color:var(--paper)}
             <input class="input mono" id="ghRepo" placeholder="owner/repo または https://github.com/owner/repo">
             <p class="help" style="margin:0">リポジトリの中身をそのままサイトとして公開します。ビルドが必要なアプリは、ビルド済みのファイルが入っているリポジトリを指定してください。</p>
           </div>
-          <div class="grid2">
-            <div class="field"><label class="flabel" for="ghBranch">Branch — 任意</label>
-              <input class="input mono" id="ghBranch" placeholder="空欄なら既定ブランチ"></div>
-            <div class="field"><label class="flabel" for="ghToken">GitHub Token — 非公開リポジトリ用（任意）</label>
-              <input class="input mono" type="password" id="ghToken" placeholder="github_pat_... / ghp_..."></div>
+          <div class="field hidden" id="ghRepoPickWrap">
+            <label class="flabel" for="ghRepoPick">あなたのリポジトリ — 設定のトークンから自動取得</label>
+            <select class="input" id="ghRepoPick"></select>
           </div>
-          <p class="help" style="margin:0">トークンはこのブラウザだけに保存されます。公開リポジトリだけなら不要です（未入力だとGitHub APIの回数制限が厳しめです）。</p>
+          <div class="field"><label class="flabel" for="ghBranch">Branch — 任意</label>
+            <input class="input mono" id="ghBranch" placeholder="空欄なら既定ブランチ"></div>
+          <p class="help" style="margin:0">公開リポジトリだけならトークンは不要です。非公開リポジトリや回数制限の緩和には、右上の「設定」からGitHubトークンを入れてください。入れると、あなたのリポジトリ一覧が自動で取得され、上の欄から選べるようになります。</p>
           <div class="field">
             <label class="flabel" for="ghSlug">URL name — 任意</label>
             <div class="slug-row"><span class="slug-prefix">/s/</span><input class="input mono" id="ghSlug" placeholder="my-site" maxlength="40"></div>
@@ -473,13 +523,17 @@ footer{background:var(--ink);color:var(--paper)}
           <span class="bsize">Supabase / Deno</span>
         </div>
         <div class="panel-body stack">
-          <div class="grid2">
-            <div class="field"><label class="flabel" for="svToken">Supabase Access Token</label>
-              <input class="input mono" type="password" id="svToken" placeholder="sbp_...">
-              <p class="help" style="margin:0">トークンはこのブラウザだけに保存されます。<a href="https://supabase.com/dashboard/account/tokens" target="_blank" rel="noreferrer">トークンを取得する</a></p></div>
-            <div class="field"><label class="flabel" for="svRef">Project Ref — デプロイ先プロジェクト</label>
-              <input class="input mono" id="svRef" value="vxdfcrgpwjsfjsdpdlzj"></div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <p class="help" style="margin:0;flex:1;min-width:220px">SupabaseのトークンとプロジェクトRefは、右上の「設定」で入力します（このブラウザだけに保存されます）。</p>
+            <button class="btn btn-outline" id="svOpenSettings">設定を開く</button>
           </div>
+          <div class="field">
+            <label class="flabel" for="svAiPrompt">AIで生成 — 作りたいサーバー</label>
+            <textarea class="code-area sm" id="svAiPrompt" spellcheck="false" placeholder="例：アクセスカウンターAPI。GETで今の数を返して、POSTで1増やす"></textarea>
+            <p class="help" style="margin:0">設定（またはAIタブ）で入れたGeminiキーで、サーバーのコードを自動生成します。生成結果は下のコード欄に入るので、確認してからデプロイしてください。</p>
+          </div>
+          <button class="btn btn-outline btn-lg btn-block" id="svAiGen">AIでコードを生成する</button>
+          <div class="status-line" id="svAiStatus"></div>
           <div class="field">
             <label class="flabel" for="svName">Function name — 関数名（URLになります）</label>
             <div class="slug-row"><span class="slug-prefix">/functions/v1/</span><input class="input mono" id="svName" placeholder="hello" maxlength="40"></div>
@@ -1143,7 +1197,7 @@ $("ghPublish").addEventListener("click", async () => {
   const status = $("ghStatus");
   const setSt = (t, isErr) => { status.textContent = t; status.classList.toggle("err", !!isErr); };
   if (!parsed) return setSt("リポジトリを owner/repo の形で入力してください", true);
-  const token = $("ghToken").value.trim();
+  const token = localStorage.getItem(GH_TOKEN_KEY) || "";
   const btn = $("ghPublish"); btn.disabled = true; btn.textContent = "取得中…";
   try {
     const meta = await ghFetch(`/repos/${parsed.owner}/${parsed.repo}`, token);
@@ -1227,9 +1281,9 @@ async function mgmt(path, token, opts = {}) {
   return res;
 }
 $("svTest").addEventListener("click", async () => {
-  const token = $("svToken").value.trim(), ref = $("svRef").value.trim();
+  const token = localStorage.getItem(SV_TOKEN_KEY) || "", ref = localStorage.getItem(SV_REF_KEY) || "";
   const st = $("svStatus");
-  if (!token || !ref) { st.textContent = "トークンとプロジェクトRefを入力してください"; st.classList.add("err"); return; }
+  if (!token || !ref) { st.textContent = "トークンとプロジェクトRefが未設定です。右上の「設定」で入力してください"; st.classList.add("err"); return; }
   st.textContent = "接続を確認中…"; st.classList.remove("err");
   try {
     const res = await mgmt(`/projects/${ref}`, token);
@@ -1247,12 +1301,12 @@ $("svTest").addEventListener("click", async () => {
   }
 });
 $("svDeploy").addEventListener("click", async () => {
-  const token = $("svToken").value.trim(), ref = $("svRef").value.trim();
+  const token = localStorage.getItem(SV_TOKEN_KEY) || "", ref = localStorage.getItem(SV_REF_KEY) || "";
   const name = slugify($("svName").value).replace(/_/g, "-");
   const code = $("svCode").value;
   const st = $("svStatus");
   const bad = (t) => { st.textContent = t; st.classList.add("err"); };
-  if (!token) return bad("Supabaseアクセストークンを入力してください");
+  if (!token) return bad("Supabaseアクセストークンが未設定です。右上の「設定」で入力してください");
   if (!ref) return bad("プロジェクトRefを入力してください");
   if (!name) return bad("関数名を入力してください（英小文字・数字・ハイフン）");
   if (!code.trim()) return bad("コードを入力してください");
@@ -1277,16 +1331,128 @@ $("svDeploy").addEventListener("click", async () => {
   } finally { btn.disabled = false; btn.textContent = "デプロイする"; }
 });
 
+/* ===== 設定メニュー／リポジトリ自動取得／AIサーバー生成 ===== */
+const GH_REPOS_KEY = "sus-gh-repos";
+function openSettings() {
+  $("setGhToken").value = localStorage.getItem(GH_TOKEN_KEY) || "";
+  $("setSbToken").value = localStorage.getItem(SV_TOKEN_KEY) || "";
+  $("setSbRef").value = localStorage.getItem(SV_REF_KEY) || "vxdfcrgpwjsfjsdpdlzj";
+  $("setAiKey").value = localStorage.getItem(KEY_STORAGE) || "";
+  $("settingsBackdrop").classList.remove("hidden");
+  $("settingsSheet").classList.remove("hidden");
+}
+function closeSettings() {
+  $("settingsBackdrop").classList.add("hidden");
+  $("settingsSheet").classList.add("hidden");
+}
+function fillRepoPicker(repos) {
+  const wrap = $("ghRepoPickWrap"), sel = $("ghRepoPick");
+  if (!repos || !repos.length) { wrap.classList.add("hidden"); return; }
+  sel.innerHTML = '<option value="">選ぶと上の欄に入力されます</option>' + repos.map((r) => `<option value="${esc(r.full_name)}">${esc(r.full_name)}${r.private ? "（非公開）" : ""}</option>`).join("");
+  wrap.classList.remove("hidden");
+}
+async function loadMyRepos(notify) {
+  const token = localStorage.getItem(GH_TOKEN_KEY) || "";
+  const st = $("setGhStatus");
+  if (!token) { if (notify) { st.textContent = "トークンを入力してください"; st.classList.add("err"); } return; }
+  if (notify) { st.textContent = "リポジトリを取得中…"; st.classList.remove("err"); }
+  try {
+    let repos = [];
+    for (let page = 1; page <= 3; page++) {
+      const batch = await ghFetch(`/user/repos?per_page=100&page=${page}&sort=updated`, token);
+      repos = repos.concat(batch.map((r) => ({ full_name: r.full_name, private: !!r.private })));
+      if (batch.length < 100) break;
+    }
+    localStorage.setItem(GH_REPOS_KEY, JSON.stringify(repos));
+    fillRepoPicker(repos);
+    if (notify) { st.textContent = `保存しました。リポジトリ ${repos.length} 件を取得しました`; toast("設定を保存しました"); }
+  } catch (e) {
+    st.classList.add("err");
+    st.textContent = e.status === 401 ? "トークンが無効です。GitHubで発行し直して貼ってください"
+      : e.status === 403 ? "GitHub APIの回数制限に達しました。時間をおいて試してください"
+      : "リポジトリの取得に失敗しました。時間をおいて試してください";
+  }
+}
+async function testSb(token, ref, st) {
+  if (!token || !ref) { st.textContent = "トークンとプロジェクトRefを入力してください"; st.classList.add("err"); return; }
+  st.textContent = "接続を確認中…"; st.classList.remove("err");
+  try {
+    const res = await mgmt(`/projects/${ref}`, token);
+    if (res.status === 401) throw new Error("unauth");
+    if (res.status === 404) throw new Error("notfound");
+    if (!res.ok) throw new Error("ng");
+    const p = await res.json();
+    st.textContent = `接続OK：プロジェクト「${p.name}」（${p.region ?? ""}）が見つかりました`;
+    toast("接続できました");
+  } catch (e) {
+    st.classList.add("err");
+    st.textContent = e.message === "unauth" ? "トークンが無効です。Supabaseダッシュボード（Account → Access Tokens）で発行した sbp_ トークンを貼ってください"
+      : e.message === "notfound" ? "そのRefのプロジェクトが見つかりません。RefはプロジェクトのダッシュボードURLに含まれる文字列です"
+      : "接続に失敗しました。時間をおいて試してください";
+  }
+}
+async function svAiGenerate() {
+  const st = $("svAiStatus");
+  const bad = (t) => { st.textContent = t; st.classList.add("err"); };
+  const key = (localStorage.getItem(KEY_STORAGE) || "").trim() || $("aiKey").value.trim();
+  const want = $("svAiPrompt").value.trim();
+  if (!key) return bad("Gemini APIキーが未設定です。右上の「設定」か「AI」タブで入力してください");
+  if (!want) return bad("作りたいサーバーの内容を書いてください（例：アクセスカウンターAPI）");
+  const btn = $("svAiGen"); btn.disabled = true; btn.textContent = "AIが生成中…"; st.classList.remove("err"); st.textContent = "生成しています…";
+  try {
+    const model = $("aiModel").value || "gemini-3.5-flash";
+    const out = await callGemini(model, key, `You write Supabase Edge Functions (Deno, TypeScript) for a website owner. Build exactly what they ask for, as ONE self-contained file.
+
+Rules:
+- Use Deno.serve. Avoid imports that need configuration.
+- Add CORS headers (Access-Control-Allow-Origin: *) and handle OPTIONS preflight.
+- If the function needs storage, prefer simple in-memory state unless the user asks for a database; note limitations in a code comment.
+- Never rely on secrets or env vars the user has not provided; if truly needed, say so in a comment.
+- Respond with JSON in this exact shape: {"name":"kebab-case-function-name","code":"the full TypeScript code"}
+No markdown fences, no extra text.
+
+What the owner wants:
+${want}`, true);
+    let name = "", code = "";
+    try { const j = JSON.parse(out); name = j.name || ""; code = j.code || ""; } catch {}
+    if (!code) code = out.trim().replace(/^```(?:ts|typescript)?\s*/i, "").replace(/```\s*$/, "").trim();
+    if (!code || !/Deno\.serve/.test(code)) throw new Error("badcode");
+    if (name) $("svName").value = slugify(name).replace(/_/g, "-");
+    $("svCode").value = code;
+    st.textContent = "生成しました。下のコードを確認して「デプロイする」を押してください";
+    toast("サーバーコードを生成しました");
+  } catch (e) {
+    if (e.message === "badcode") bad("AIの生成結果をコードとして読み取れませんでした。作りたい内容をもう少し具体的に書いて、もう一度試してください");
+    else bad(e.message || "生成に失敗しました。時間をおいて試してください");
+  } finally { btn.disabled = false; btn.textContent = "AIでコードを生成する"; }
+}
+
 function initFeatures() {
-  /* GitHub */
-  $("ghToken").value = localStorage.getItem(GH_TOKEN_KEY) || "";
-  $("ghToken").addEventListener("change", () => localStorage.setItem(GH_TOKEN_KEY, $("ghToken").value.trim()));
-  /* Server */
-  $("svToken").value = localStorage.getItem(SV_TOKEN_KEY) || "";
-  $("svRef").value = localStorage.getItem(SV_REF_KEY) || "vxdfcrgpwjsfjsdpdlzj";
   $("svCode").value = SAMPLE_FN;
-  $("svToken").addEventListener("change", () => localStorage.setItem(SV_TOKEN_KEY, $("svToken").value.trim()));
-  $("svRef").addEventListener("change", () => localStorage.setItem(SV_REF_KEY, $("svRef").value.trim()));
+  /* 設定メニュー */
+  $("settingsOpen").addEventListener("click", openSettings);
+  $("settingsClose").addEventListener("click", closeSettings);
+  $("settingsBackdrop").addEventListener("click", closeSettings);
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeSettings(); });
+  $("svOpenSettings").addEventListener("click", openSettings);
+  $("setGhSave").addEventListener("click", () => { localStorage.setItem(GH_TOKEN_KEY, $("setGhToken").value.trim()); loadMyRepos(true); });
+  $("setSbSave").addEventListener("click", () => {
+    localStorage.setItem(SV_TOKEN_KEY, $("setSbToken").value.trim());
+    localStorage.setItem(SV_REF_KEY, $("setSbRef").value.trim());
+    const st = $("setSbStatus"); st.textContent = "保存しました"; st.classList.remove("err"); toast("設定を保存しました");
+  });
+  $("setSbTest").addEventListener("click", () => {
+    localStorage.setItem(SV_TOKEN_KEY, $("setSbToken").value.trim());
+    localStorage.setItem(SV_REF_KEY, $("setSbRef").value.trim());
+    testSb(localStorage.getItem(SV_TOKEN_KEY) || "", localStorage.getItem(SV_REF_KEY) || "", $("setSbStatus"));
+  });
+  $("setAiKey").addEventListener("change", () => { const v = $("setAiKey").value.trim(); localStorage.setItem(KEY_STORAGE, v); $("aiKey").value = v; });
+  /* GitHubリポジトリ選択 */
+  try { fillRepoPicker(JSON.parse(localStorage.getItem(GH_REPOS_KEY) || "[]")); } catch {}
+  $("ghRepoPick").addEventListener("change", () => { if ($("ghRepoPick").value) $("ghRepo").value = $("ghRepoPick").value; });
+  if (localStorage.getItem(GH_TOKEN_KEY)) loadMyRepos(false);
+  /* AIサーバー生成 */
+  $("svAiGen").addEventListener("click", svAiGenerate);
 }
 
 /* ===== 使い方・FAQ ===== */
@@ -1295,8 +1461,8 @@ const HOWTO = [
   { icon: I.zip, t: "ZIPサイト", path: "/s/xxx", note: "合計8MBまで。ページごとのURLも変更できます。", steps: ["ZIP・ファイル・フォルダを選ぶ", "index.html がトップページになります", "「公開する」を押してURLをシェア", "履歴の「編集」でファイルを上書き可能"] },
   { icon: I.server, t: "モックAPI", path: "/api/public/e/xxx", note: "CORS対応済み。最大100KB。", steps: ["レスポンスボディ（JSON等）を入力", "メソッド・Content-Type・ステータスを選択", "「APIを公開」して fetch で呼び出す", "履歴の「編集」でレスポンスを更新可能"] },
   { icon: I.bot, t: "AIアシスタント", path: "Gemini", note: "APIキーはこのブラウザだけに保存されます。", steps: ["Gemini APIキーを入力", "やりたいことと対象を選ぶ", "指示を書いて「AIに頼む」", "改善案は確認してから保存を押す"] },
-  { icon: I.git, t: "GitHub公開", path: "/s/xxx", note: ".env ファイルは取り込みから除外されます。合計8MBまで。", steps: ["リポジトリ名（owner/repo）を入力", "非公開なら自分のGitHubトークンを入力", "「取り込んで公開する」を押す", "履歴から編集・上書きも可能"] },
-  { icon: I.rocket, t: "サーバー", path: "/functions/v1/xxx", note: "Supabase Edge Functions（Deno）にデプロイします。", steps: ["Supabaseアクセストークンを入力", "関数名とコード（Deno）を書く", "「デプロイする」を押す", "発行されたURLを fetch で呼び出す"] },
+  { icon: I.git, t: "GitHub公開", path: "/s/xxx", note: ".env ファイルは取り込みから除外されます。合計8MBまで。", steps: ["リポジトリ名（owner/repo）を入力", "右上の「設定」でGitHubトークンを入れると、自分のリポジトリが自動で並ぶ", "「取り込んで公開する」を押す", "履歴から編集・上書きも可能"] },
+  { icon: I.rocket, t: "サーバー", path: "/functions/v1/xxx", note: "Supabase Edge Functions（Deno）にデプロイします。", steps: ["右上の「設定」でSupabaseトークンを入力", "作りたい内容を書いてAIにコードを生成させる（手書きも可）", "「デプロイする」を押す", "発行されたURLを fetch で呼び出す"] },
 ];
 $("howtoGrid").innerHTML = HOWTO.map((g) => `
   <div class="howto-cell">
