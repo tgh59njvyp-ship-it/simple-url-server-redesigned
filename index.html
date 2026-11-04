@@ -247,14 +247,6 @@ footer{background:var(--ink);color:var(--paper)}
 @media(min-width:640px){.grid2{grid-template-columns:1fr 1fr}}
 .mt{margin-top:16px}
 
-.auth-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;border:1px solid var(--line);border-radius:16px;padding:12px 14px;margin:0 0 14px;background:var(--card);font-size:13px}
-.auth-bar .who{color:var(--muted);line-height:1.6}
-.auth-bar .who b{color:var(--ink)}
-.auth-btns{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
-.cloud-help{border:1px dashed var(--line-strong);border-radius:16px;padding:14px 16px;margin:0 0 14px;background:var(--card)}
-.cloud-help summary{font-size:14px;font-weight:700;cursor:pointer}
-.cloud-help pre{overflow-x:auto;background:#201d17;color:#efeadf;border-radius:12px;padding:14px;font-size:12px;line-height:1.7;font-family:"IBM Plex Mono",monospace}
-.cloud-help p{font-size:13px;color:var(--muted);line-height:1.8}
 .status-line{font-size:13px;color:var(--muted);min-height:20px}
 .status-line.err{color:var(--brand)}
 .chk{display:flex;gap:10px;align-items:center;font-size:14px;font-weight:500;cursor:pointer}
@@ -300,26 +292,6 @@ footer{background:var(--ink);color:var(--paper)}
   <section>
     <p class="static-note">STATIC EDITION — このファイル1枚で動く静的版です。作った内容は公開サーバーに保存され、URLが発行されます。</p>
 
-    <div class="auth-bar" id="authBar">
-      <span class="who" id="authWho"><b>アカウント</b> — ログインすると履歴をクラウドに保存できます（端末を変えても見られます）</span>
-      <span class="auth-btns" id="authBtns">
-        <button class="btn btn-outline btn-sm" id="loginGithub">GitHubでログイン</button>
-        <button class="btn btn-outline btn-sm" id="loginGoogle">Googleでログイン</button>
-      </span>
-    </div>
-    <details class="cloud-help hidden" id="cloudHelp">
-      <summary>クラウド保存を使うには、最初に1回だけ設定が必要です（Supabaseに履歴用テーブルを作成）</summary>
-      <p>Supabaseダッシュボードで対象プロジェクト（vxdfcrgpwjsfjsdpdlzj）を開き、SQL Editorに以下を貼って実行してください。あわせて Authentication → Providers で GitHub / Google を有効化し、Authentication → URL Configuration の Redirect URLs にこのページのURLを追加するとログインできます。</p>
-      <pre id="cloudSql">create table if not exists public.user_items (
-  user_id uuid primary key references auth.users(id) on delete cascade,
-  items jsonb not null default '[]'::jsonb,
-  updated_at timestamptz not null default now()
-);
-alter table public.user_items enable row level security;
-create policy "user_items_own" on public.user_items
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);</pre>
-      <button class="btn btn-outline btn-sm" id="cloudSqlCopy">SQLをコピー</button>
-    </details>
     <div class="tabs-list" id="tabsList" role="tablist"></div>
 
     <!-- HTML -->
@@ -1305,100 +1277,6 @@ $("svDeploy").addEventListener("click", async () => {
   } finally { btn.disabled = false; btn.textContent = "デプロイする"; }
 });
 
-/* ===== ログイン（Supabase Auth / OAuth）＆クラウド履歴 ===== */
-const AUTH_KEY = "sus-auth-v1";
-const CLOUD_OK_KEY = "sus-cloud-ok";
-let session = null;
-try { session = JSON.parse(localStorage.getItem(AUTH_KEY) || "null"); } catch { session = null; }
-function persistSession() { if (session) localStorage.setItem(AUTH_KEY, JSON.stringify(session)); else localStorage.removeItem(AUTH_KEY); }
-function loginWith(provider) {
-  const redirect = location.href.split("#")[0];
-  location.href = `${SB_URL}/auth/v1/authorize?provider=${provider}&redirect_to=${encodeURIComponent(redirect)}`;
-}
-async function refreshSession() {
-  if (!session?.refresh_token) return false;
-  const res = await fetch(`${SB_URL}/auth/v1/token?grant_type=refresh_token`, { method: "POST", headers: { apikey: SB_KEY, "Content-Type": "application/json" }, body: JSON.stringify({ refresh_token: session.refresh_token }) });
-  if (!res.ok) return false;
-  const j = await res.json();
-  session = { ...session, access_token: j.access_token, refresh_token: j.refresh_token, expires_at: Date.now() + (j.expires_in ?? 3600) * 1000 };
-  persistSession(); return true;
-}
-async function ensureSession() {
-  if (!session) return false;
-  if (session.expires_at && Date.now() > session.expires_at - 60000) return refreshSession();
-  return true;
-}
-async function fetchAuthUser() {
-  if (!(await ensureSession())) return;
-  const res = await fetch(`${SB_URL}/auth/v1/user`, { headers: { apikey: SB_KEY, Authorization: "Bearer " + session.access_token } });
-  if (res.status === 401) { if (await refreshSession()) return fetchAuthUser(); session = null; persistSession(); renderAuth(); return; }
-  if (!res.ok) return;
-  const u = await res.json();
-  session.user_id = u.id; session.email = u.email || u.user_metadata?.email || "";
-  persistSession(); renderAuth();
-}
-function renderAuth() {
-  const who = $("authWho"), btns = $("authBtns");
-  if (session) {
-    who.innerHTML = `<b>ログイン中</b> — ${esc(session.email || "（メール未登録）")}。履歴はこの端末に加えてクラウドにも保存できます`;
-    btns.innerHTML = `<button class="btn btn-outline btn-sm" id="cloudPushBtn">クラウドへ保存</button>
-      <button class="btn btn-outline btn-sm" id="cloudPullBtn">クラウドから読込</button>
-      <button class="btn btn-outline btn-sm" id="logoutBtn">ログアウト</button>`;
-    $("cloudPushBtn").addEventListener("click", () => cloudPush(false));
-    $("cloudPullBtn").addEventListener("click", () => cloudPull(false));
-    $("logoutBtn").addEventListener("click", async () => {
-      try { await fetch(`${SB_URL}/auth/v1/logout`, { method: "POST", headers: { apikey: SB_KEY, Authorization: "Bearer " + session.access_token } }); } catch {}
-      session = null; persistSession(); renderAuth(); toast("ログアウトしました");
-    });
-  } else {
-    who.innerHTML = `<b>アカウント</b> — ログインすると履歴をクラウドに保存できます（端末を変えても見られます）`;
-    btns.innerHTML = `<button class="btn btn-outline btn-sm" id="loginGithub">GitHubでログイン</button>
-      <button class="btn btn-outline btn-sm" id="loginGoogle">Googleでログイン</button>`;
-    $("loginGithub").addEventListener("click", () => loginWith("github"));
-    $("loginGoogle").addEventListener("click", () => loginWith("google"));
-  }
-}
-async function sbAuthFetch(path, opts = {}) {
-  return fetch(SB_URL + "/rest/v1/" + path, { ...opts, headers: { apikey: SB_KEY, Authorization: "Bearer " + session.access_token, "Content-Type": "application/json", ...(opts.headers || {}) } });
-}
-function cloudTableMissing(res, body) { return res.status === 404 || body?.code === "42P01" || body?.code === "PGRST205" || /user_items/.test(body?.message ?? ""); }
-async function cloudPush(silent) {
-  if (!session?.user_id) { if (!silent) toast("先にログインしてください", true); return false; }
-  if (!(await ensureSession())) { if (!silent) toast("セッションの期限が切れました。再ログインしてください", true); return false; }
-  const res = await sbAuthFetch("user_items", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify({ user_id: session.user_id, items: loadItems(), updated_at: new Date().toISOString() }) });
-  if (res.ok) { localStorage.setItem(CLOUD_OK_KEY, "1"); if (!silent) toast("クラウドに保存しました"); return true; }
-  const body = await res.json().catch(() => null);
-  if (cloudTableMissing(res, body)) { $("cloudHelp").classList.remove("hidden"); if (!silent) toast("履歴用テーブルが未作成です。下の手順で作成してください", true); return false; }
-  if (!silent) toast("クラウド保存に失敗しました", true);
-  return false;
-}
-async function cloudPull(silent) {
-  if (!session?.user_id) return false;
-  if (!(await ensureSession())) return false;
-  const res = await sbAuthFetch(`user_items?select=items&user_id=eq.${encodeURIComponent(session.user_id)}`);
-  if (!res.ok) {
-    const body = await res.json().catch(() => null);
-    if (cloudTableMissing(res, body)) { $("cloudHelp").classList.remove("hidden"); if (!silent) toast("履歴用テーブルが未作成です。下の手順で作成してください", true); }
-    else if (!silent) toast("クラウドからの読み込みに失敗しました", true);
-    return false;
-  }
-  const rows = await res.json().catch(() => []);
-  const items = rows[0]?.items;
-  if (Array.isArray(items)) {
-    if (items.length) { saveItems(items); if (!silent) toast("クラウドの履歴を読み込みました"); }
-    else if (!silent) toast("クラウドに履歴はまだありません");
-    localStorage.setItem(CLOUD_OK_KEY, "1");
-    return true;
-  }
-  return false;
-}
-let cloudTimer;
-function scheduleCloudPush() {
-  if (!session || !localStorage.getItem(CLOUD_OK_KEY)) return;
-  clearTimeout(cloudTimer); cloudTimer = setTimeout(() => cloudPush(true), 1500);
-}
-const _origSaveItems = saveItems;
-saveItems = function (items) { _origSaveItems(items); scheduleCloudPush(); };
 function initFeatures() {
   /* GitHub */
   $("ghToken").value = localStorage.getItem(GH_TOKEN_KEY) || "";
@@ -1409,20 +1287,6 @@ function initFeatures() {
   $("svCode").value = SAMPLE_FN;
   $("svToken").addEventListener("change", () => localStorage.setItem(SV_TOKEN_KEY, $("svToken").value.trim()));
   $("svRef").addEventListener("change", () => localStorage.setItem(SV_REF_KEY, $("svRef").value.trim()));
-  /* Auth callback (implicit flow) */
-  if (location.hash.includes("access_token=")) {
-    const q = new URLSearchParams(location.hash.slice(1));
-    const at = q.get("access_token"), rt = q.get("refresh_token"), ei = Number(q.get("expires_in") || 3600);
-    if (at) {
-      session = { access_token: at, refresh_token: rt, expires_at: Date.now() + ei * 1000, user_id: "", email: "" };
-      persistSession();
-      history.replaceState(null, "", location.href.split("#")[0]);
-      toast("ログインしました");
-    }
-  }
-  renderAuth();
-  $("cloudSqlCopy").addEventListener("click", () => { navigator.clipboard.writeText($("cloudSql").textContent); toast("SQLをコピーしました"); });
-  if (session) { fetchAuthUser().then(() => cloudPull(true)); }
 }
 
 /* ===== 使い方・FAQ ===== */
@@ -1447,7 +1311,6 @@ const FAQ = [
   { q: "料金はかかりますか？", a: "かかりません。登録も不要です。AI機能だけ、ご自身のGemini APIキーが必要です（キーはブラウザ内にのみ保存されます）。" },
   { q: "この静的版と通常版の違いは？", a: "見た目と機能は同じです。静的版はこのファイル1枚で動き、データの保存とURLの配信は公開サーバー（simple-url-server.lovable.app）が担当します。" },
   { q: "GitHubのリポジトリを公開する際の注意は？", a: "中身がそのまま静的サイトとして公開されます。ビルドが必要なプロジェクトはビルド済みファイルが入ったリポジトリを指定してください。.env は除外されます。非公開リポジトリにはご自身のGitHubトークンが必要です（ブラウザ内にのみ保存）。" },
-  { q: "ログインすると何が変わりますか？", a: "公開履歴をクラウドに保存でき、端末を変えても同じ履歴が見られます。ログインはSupabase側でプロバイダー（GitHub / Google）が有効な場合に使えます。有効化と履歴用テーブルの作成は初回だけ必要で、手順はログイン欄の下に表示されます。" },
   { q: "サーバー機能の料金は？", a: "デプロイ先はご自身のSupabaseプロジェクトで、無料枠の範囲なら追加料金はかかりません。このアプリ側の利用料もありません。" },
 ];
 $("faqList").innerHTML = FAQ.map((f) => `
