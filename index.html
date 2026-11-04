@@ -1,0 +1,1068 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simple URL Server — 貼るだけで、世界に公開。</title>
+<meta name="description" content="HTMLページ、ZIPサイト、擬似APIを、その場で共有URLに。サーバーもアカウントもいりません。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Simple URL Server — 貼るだけで、世界に公開。">
+<meta property="og:description" content="HTMLページ、ZIPサイト、擬似APIを、その場で共有URLに。サーバーもアカウントもいりません。">
+<meta property="og:image" content="og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Simple URL Server — 貼るだけで、世界に公開。">
+<meta name="twitter:description" content="HTMLページ、ZIPサイト、擬似APIを、その場で共有URLに。">
+<meta name="twitter:image" content="og-image.png">
+<!--
+  静的版（単一ファイル）について
+  - このファイル1枚で動作する版です。デザインと操作は本アプリ（TanStack Start版）と同一です。
+  - データの保存は Supabase（公開キー）へブラウザから直接行い、発行URLの配信は
+    公開サーバー https://simple-url-server.lovable.app が担当します。
+  - 配信先を変えたい場合は、下のスクリプト冒頭の VIEW_BASE を変更してください。
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Zen+Kaku+Gothic+New:wght@500;700;900&display=swap">
+<style>
+:root{
+  --paper:#faf9f6; --ink:#1c1b17; --brand:#f04e23; --code:#171512; --code-fg:#efeadf;
+  --muted:#6f6a5e; --line:rgba(28,27,23,.13); --line-strong:rgba(28,27,23,.7);
+  --card:#ffffff; --soft:#f1efe9;
+  --radius:20px;
+}
+*{box-sizing:border-box; border-color:var(--line)}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+::selection{background:var(--brand);color:#fff}
+button{font-family:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit}
+.mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace}
+svg.ic{width:16px;height:16px;flex:none}
+
+/* nav */
+.nav{position:sticky;top:0;z-index:40;border-bottom:1px solid var(--line);background:rgba(250,249,246,.85);backdrop-filter:blur(10px)}
+.nav-in{max-width:1152px;margin:0 auto;height:56px;padding:0 16px;display:flex;align-items:center;gap:12px}
+.logo{display:flex;align-items:center;gap:10px;color:var(--ink);text-decoration:none}
+.logo-mark{width:32px;height:32px;border-radius:9px;background:var(--ink);color:var(--paper);display:flex;align-items:center;justify-content:center}
+.logo-name{font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:600;letter-spacing:.08em}
+.nav-links{margin-left:auto;display:none;gap:24px;font-size:13px;font-weight:700}
+.nav-links a{color:var(--muted);text-decoration:none}
+.nav-links a:hover{color:var(--ink)}
+@media(min-width:640px){.nav-links{display:flex}}
+.pill-free{margin-left:auto;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 12px;font-size:11px;font-weight:700}
+@media(min-width:640px){.pill-free{margin-left:0}}
+.dot{width:6px;height:6px;border-radius:99px;background:var(--brand);flex:none}
+
+/* hero */
+.hero{border-bottom:1px solid var(--line);background-image:linear-gradient(to right,rgba(28,27,23,.05) 1px,transparent 1px),linear-gradient(to bottom,rgba(28,27,23,.05) 1px,transparent 1px);background-size:56px 56px}
+.hero-in{max-width:1152px;margin:0 auto;padding:48px 16px 40px}
+@media(min-width:640px){.hero-in{padding:80px 24px 56px}}
+.eyebrow{display:flex;align-items:center;gap:12px;font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:var(--muted)}
+.eyebrow::before{content:"";width:32px;height:1px;background:var(--brand)}
+h1{margin:20px 0 0;font-size:44px;line-height:1.08;font-weight:900;letter-spacing:-.01em}
+@media(min-width:640px){h1{font-size:76px}}
+h1 .accent{color:var(--brand)}
+.hero-row{margin-top:24px;display:flex;flex-direction:column;gap:24px}
+@media(min-width:640px){.hero-row{flex-direction:row;align-items:flex-end;justify-content:space-between}}
+.hero-desc{max-width:448px;margin:0;font-size:15px;line-height:1.8;color:var(--muted)}
+.stats{display:flex;font-family:"IBM Plex Mono",monospace;flex:none}
+.stats div{padding:0 20px;border-left:1px solid var(--line)}
+.stats div:first-child{padding-left:0;border-left:0}
+.stats dt{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.stats dd{margin:4px 0 0;font-size:20px;font-weight:600}
+.mode-index{margin-top:40px;display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--line-strong)}
+@media(min-width:1024px){.mode-index{grid-template-columns:repeat(4,1fr)}}
+.mode-cell{background:none;border:0;border-bottom:1px solid var(--line);padding:16px 4px;text-align:left;color:var(--ink)}
+@media(min-width:640px){.mode-cell{padding:16px 12px}}
+@media(min-width:1024px){.mode-cell{border-bottom:0}}
+.mode-cell .n{font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;letter-spacing:.14em;color:var(--muted)}
+.mode-cell.active .n{color:var(--brand)}
+.mode-cell .t{display:flex;align-items:center;gap:4px;margin-top:6px;font-size:14px;font-weight:900}
+.mode-cell .t svg{color:var(--muted);transition:.2s}
+.mode-cell:hover .t svg{color:var(--brand);transform:translate(2px,-2px)}
+.mode-cell .d{display:block;margin-top:2px;font-size:12px;color:var(--muted)}
+
+/* main */
+main{max-width:1152px;margin:0 auto;padding:40px 16px 56px;display:flex;flex-direction:column;gap:64px}
+@media(min-width:640px){main{padding:56px 24px 72px}}
+.static-note{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--muted);margin:0 0 12px;letter-spacing:.04em}
+.static-note b{color:var(--brand);font-weight:600}
+
+/* tabs */
+.tabs-list{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px}
+.tab-btn{height:44px;border:0;border-radius:999px;background:transparent;color:var(--muted);font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;transition:.2s}
+.tab-btn:hover{color:var(--ink)}
+.tab-btn.active{background:var(--ink);color:var(--paper)}
+.panel{display:none;margin-top:24px}
+.panel.active{display:block}
+
+/* editor panels */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.bar{display:flex;align-items:center;gap:10px;background:var(--code);color:var(--code-fg);padding:12px 16px}
+@media(min-width:640px){.bar{padding:12px 20px}}
+.bar .blabel{font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;letter-spacing:.16em;text-transform:uppercase}
+.bar .bsize{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:11px;color:rgba(239,234,223,.5)}
+.bar .edit-tag{background:var(--brand);color:#fff;border-radius:999px;padding:2px 10px;font-family:"IBM Plex Mono",monospace;font-size:10px;font-weight:600}
+.bar .ghost-btn{margin-left:auto;background:none;border:0;color:var(--code-fg);font-size:12px;font-weight:700;display:flex;gap:4px;align-items:center}
+.code-area{width:100%;min-height:340px;resize:none;border:0;outline:none;background:var(--code);color:var(--code-fg);padding:16px;font-family:"IBM Plex Mono",monospace;font-size:13px;line-height:1.7;caret-color:var(--brand);display:block}
+.code-area.sm{min-height:240px}
+@media(min-width:640px){.code-area{padding:16px 20px}}
+.panel-body{padding:16px}
+@media(min-width:640px){.panel-body{padding:20px}}
+.action-row{display:flex;flex-direction:column;gap:12px;border-top:1px solid var(--line);padding:16px}
+@media(min-width:640px){.action-row{flex-direction:row;align-items:flex-end;padding:20px}}
+.field{flex:1;display:flex;flex-direction:column;gap:6px;min-width:0}
+.flabel{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.slug-row{display:flex;align-items:center;gap:8px}
+.slug-prefix{font-family:"IBM Plex Mono",monospace;font-size:14px;font-weight:500;color:var(--muted);white-space:nowrap}
+.input{height:44px;width:100%;border:1px solid rgba(28,27,23,.18);border-radius:12px;background:var(--card);padding:0 14px;font-size:14px;color:var(--ink);outline:none;transition:.15s}
+.input:focus{border-color:var(--ink);box-shadow:0 0 0 3px rgba(240,78,35,.25)}
+.input.mono{font-size:13px}
+select.input{appearance:none;background-image:url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236f6a5e' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px}
+textarea.input{height:auto;min-height:84px;padding:10px 14px;resize:vertical;line-height:1.7}
+.grid3{display:grid;gap:12px;border-bottom:1px solid var(--line);padding:16px}
+@media(min-width:640px){.grid3{grid-template-columns:repeat(3,1fr);padding:20px}}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:999px;border:1px solid transparent;font-weight:700;font-size:14px;height:40px;padding:0 20px;transition:.2s;background:transparent;color:var(--ink)}
+.btn:active{transform:scale(.98)}
+.btn:disabled{opacity:.4;pointer-events:none}
+.btn-primary{background:var(--ink);color:var(--paper)}
+.btn-primary:hover{background:var(--brand);color:#fff}
+.btn-lg{height:48px;padding:0 28px;font-size:15px}
+.btn-outline{border-color:rgba(28,27,23,.18);background:transparent}
+.btn-outline:hover{border-color:var(--ink)}
+.btn-sm{height:36px;padding:0 14px;font-size:12px}
+.btn-brand{background:var(--brand);color:#fff}
+.btn-brand:hover{background:var(--ink);color:var(--paper)}
+.btn-block{width:100%}
+
+/* result */
+.result{display:none;margin:16px;margin-top:0;background:var(--ink);color:var(--paper);border-radius:var(--radius);padding:20px}
+@media(min-width:640px){.result{padding:24px}}
+.result.show{display:block}
+.result-head{display:flex;align-items:center;gap:10px}
+.result-check{width:24px;height:24px;border-radius:99px;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center}
+.result-title{font-size:14px;font-weight:900;letter-spacing:.04em}
+.result-live{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:rgba(250,249,246,.5)}
+.result-row{margin-top:16px;display:flex;flex-direction:column;gap:8px}
+@media(min-width:640px){.result-row{flex-direction:row}}
+.result-url{flex:1;height:48px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);border-radius:12px;color:var(--paper);padding:0 14px;font-family:"IBM Plex Mono",monospace;font-size:14px;outline:none;min-width:0}
+.result .btn-outline{border-color:rgba(255,255,255,.25);color:var(--paper);height:48px}
+.result .btn-outline:hover{border-color:var(--paper)}
+.result .btn-open{background:var(--brand);color:#fff;height:48px}
+.result .btn-open:hover{background:var(--paper);color:var(--ink)}
+
+/* zip */
+.drop{border:1px dashed rgba(28,27,23,.3);background:rgba(241,239,233,.5);border-radius:16px;padding:32px 20px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:12px;transition:.2s}
+.drop.has{border-color:rgba(240,78,35,.5);background:rgba(240,78,35,.04)}
+.drop-ic{width:48px;height:48px;border-radius:99px;background:var(--ink);color:var(--paper);display:flex;align-items:center;justify-content:center}
+.drop.has .drop-ic{background:var(--brand);color:#fff}
+.drop-title{font-size:14px;font-weight:700}
+.drop-note{max-width:420px;font-size:12px;line-height:1.7;color:var(--muted)}
+.drop-btns{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.drop-btns label{display:inline-flex}
+.page-row{display:flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:12px;background:var(--card);padding:6px 6px 6px 12px;font-size:12px;margin-top:8px}
+.page-row .input{height:36px;border:0;background:var(--soft);font-size:12px}
+.page-row .input:focus{box-shadow:none}
+details.files{font-size:12px;color:var(--muted);margin-top:8px}
+details.files summary{cursor:pointer;font-weight:700;padding:4px 0}
+.files-list{margin-top:4px;max-height:160px;overflow:auto;background:var(--code);color:var(--code-fg);border-radius:12px;padding:14px;font-family:"IBM Plex Mono",monospace;line-height:1.8}
+
+/* ai */
+.answer{display:none;white-space:pre-wrap;background:var(--code);color:var(--code-fg);border-radius:16px;padding:16px;font-family:"IBM Plex Mono",monospace;font-size:13px;line-height:1.8}
+.answer.show{display:block}
+@media(min-width:640px){.answer{padding:20px}}
+.help{font-size:12px;line-height:1.7;color:var(--muted)}
+.help a{color:var(--brand);font-weight:700}
+
+/* sections */
+.sec-head{margin-bottom:20px}
+.sec-kicker{font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:var(--brand);margin:0}
+.sec-title{margin:8px 0 0;font-size:30px;font-weight:900;letter-spacing:-.01em}
+.empty{border:1px dashed rgba(28,27,23,.3);border-radius:var(--radius);padding:40px 24px;text-align:center}
+.empty b{font-size:14px}
+.empty p{margin:6px 0 0;font-size:14px;color:var(--muted)}
+.hist-meta{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.hist-count{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.hist-list{border:1px solid var(--line);border-radius:var(--radius);background:var(--card);overflow:hidden}
+.hist-item{padding:16px;border-top:1px solid var(--line);transition:.15s}
+.hist-item:first-child{border-top:0}
+.hist-item:hover{background:rgba(241,239,233,.5)}
+@media(min-width:640px){.hist-item{padding:16px 20px}}
+.hist-row{display:flex;flex-direction:column;gap:12px}
+@media(min-width:640px){.hist-row{flex-direction:row;align-items:center}}
+.kind{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:4px 10px;font-family:"IBM Plex Mono",monospace;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;background:var(--ink);color:var(--paper)}
+.kind.api{background:var(--brand);color:#fff}
+.hist-title{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.editable{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:2px 8px;font-size:10px;font-weight:700;color:var(--muted);flex:none}
+.hist-url{display:block;margin-top:6px;font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--muted);text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hist-url:hover{color:var(--brand)}
+.hist-btns{display:flex;flex-wrap:wrap;gap:6px}
+.icon-btn{width:36px;padding:0}
+.link-btn{background:none;border:0;color:var(--muted);font-size:12px;font-weight:700}
+.link-btn:hover{color:#c22e2e}
+
+/* howto */
+.howto-grid{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+@media(min-width:768px){.howto-grid{grid-template-columns:1fr 1fr}}
+.howto-cell{background:var(--card);padding:20px}
+@media(min-width:640px){.howto-cell{padding:24px}}
+.howto-head{display:flex;align-items:center;gap:10px}
+.howto-head svg{color:var(--brand)}
+.howto-head h3{margin:0;font-size:16px;font-weight:900}
+.howto-path{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--muted)}
+.howto-cell ol{list-style:none;margin:16px 0 0;padding:0}
+.howto-cell li{display:flex;gap:12px;border-top:1px solid var(--line);padding:10px 0;font-size:14px;color:var(--muted);line-height:1.6}
+.howto-cell li:first-child{border-top:0;padding-top:0}
+.howto-cell li .sn{font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;color:var(--brand);line-height:1.9}
+.howto-note{margin:12px 0 0;font-size:12px;color:var(--muted)}
+
+/* faq */
+.faq-list{border-top:1px solid var(--line-strong)}
+.faq-item{border-bottom:1px solid var(--line)}
+.faq-item summary{display:flex;align-items:center;gap:12px;padding:16px 0;font-size:15px;font-weight:700;cursor:pointer;list-style:none}
+.faq-item summary::-webkit-details-marker{display:none}
+.faq-item summary .plus{margin-left:auto;color:var(--muted);transition:.2s;flex:none}
+.faq-item[open ] summary .plus{transform:rotate(45deg);color:var(--brand)}
+.faq-item p{margin:0;padding:0 32px 20px 0;font-size:14px;line-height:1.8;color:var(--muted)}
+
+/* footer */
+footer{background:var(--ink);color:var(--paper)}
+.foot-in{max-width:1152px;margin:0 auto;padding:48px 16px}
+@media(min-width:640px){.foot-in{padding:48px 24px}}
+.foot-title{margin:0;font-size:26px;font-weight:900;white-space:nowrap}
+@media(min-width:640px){.foot-title{font-size:36px}}
+.foot-title .accent{color:var(--brand)}
+.foot-meta{margin-top:32px;border-top:1px solid rgba(255,255,255,.15);padding-top:20px;display:flex;flex-wrap:wrap;gap:8px 24px;font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:rgba(250,249,246,.5)}
+.foot-meta .right{margin-left:auto;text-transform:none;letter-spacing:0}
+
+/* toast */
+#toast{position:fixed;left:50%;top:18px;transform:translate(-50%,-16px);background:var(--ink);color:var(--paper);font-size:13px;font-weight:700;border-radius:999px;padding:10px 20px;opacity:0;pointer-events:none;transition:.25s;z-index:99;max-width:92vw;text-align:center}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+#toast.err{background:#b3352b}
+.hidden{display:none!important}
+.stack{display:flex;flex-direction:column;gap:20px}
+.grid2{display:grid;gap:16px}
+@media(min-width:640px){.grid2{grid-template-columns:1fr 1fr}}
+.mt{margin-top:16px}
+</style>
+</head>
+<body>
+
+<div id="toast" role="status"></div>
+
+<!-- Nav -->
+<div class="nav">
+  <div class="nav-in">
+    <a class="logo" href="#">
+      <span class="logo-mark"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><line x1="8" x2="16" y1="12" y2="12"/></svg></span>
+      <span class="logo-name">SIMPLE URL SERVER</span>
+    </a>
+    <nav class="nav-links">
+      <a href="#history">履歴</a><a href="#howto">使い方</a><a href="#faq">よくある質問</a>
+    </nav>
+    <span class="pill-free"><span class="dot"></span>無料・登録不要</span>
+  </div>
+</div>
+
+<!-- Hero -->
+<header class="hero">
+  <div class="hero-in">
+    <p class="eyebrow">Paste — Publish — Share</p>
+    <h1>貼るだけで、<br>世界に<span class="accent">公開</span>。</h1>
+    <div class="hero-row">
+      <p class="hero-desc">HTMLページ、ZIPサイト、擬似APIを、その場で共有URLに。サーバーもアカウントもいりません。作って、貼って、押すだけ。</p>
+      <dl class="stats">
+        <div><dt>Modes</dt><dd>04</dd></div>
+        <div><dt>Sign-up</dt><dd>なし</dd></div>
+        <div><dt>Price</dt><dd>¥0</dd></div>
+      </dl>
+    </div>
+    <div class="mode-index" id="modeIndex"></div>
+  </div>
+</header>
+
+<main>
+  <section>
+    <p class="static-note">STATIC EDITION — このファイル1枚で動く静的版です。作った内容は公開サーバーに保存され、URLが発行されます。</p>
+    <div class="tabs-list" id="tabsList" role="tablist"></div>
+
+    <!-- HTML -->
+    <div class="panel" id="panel-html">
+      <div class="card">
+        <div class="bar">
+          <span class="dot"></span>
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:rgba(239,234,223,.6)"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg>
+          <span class="blabel">index.html</span>
+          <span class="edit-tag hidden" id="htmlEditTag"></span>
+          <span class="bsize" id="htmlSize"></span>
+        </div>
+        <textarea class="code-area" id="htmlInput" spellcheck="false"></textarea>
+        <div class="action-row">
+          <div class="field">
+            <label class="flabel" for="htmlSlug">URL name — 任意</label>
+            <div class="slug-row"><span class="slug-prefix">/p/</span><input class="input mono" id="htmlSlug" placeholder="my-page" maxlength="40"></div>
+          </div>
+          <button class="btn btn-outline btn-lg hidden" id="htmlCancel">キャンセル</button>
+          <button class="btn btn-primary btn-lg" id="htmlPublish"></button>
+        </div>
+        <div class="result" id="htmlResult"></div>
+      </div>
+    </div>
+
+    <!-- ZIP -->
+    <div class="panel" id="panel-zip">
+      <div class="card">
+        <div class="bar">
+          <span class="dot"></span>
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:rgba(239,234,223,.6)"><path d="M10 2v6"/><path d="M8 5h4"/><path d="M10 8v2"/><path d="M10 12v2"/><path d="M10 16v2"/><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16c0 1.1.9 2 2 2Z" transform="translate(-2 0)"/></svg>
+          <span class="blabel" id="zipBarLabel">Site upload</span>
+          <button class="ghost-btn hidden" id="zipCancelEdit">編集をやめる</button>
+        </div>
+        <div class="panel-body stack">
+          <div class="drop" id="zipDrop">
+            <span class="drop-ic"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/></svg></span>
+            <span class="drop-title" id="zipFileName">Zip・ファイル・フォルダを選択</span>
+            <span class="drop-note">index.html・CSS・JS・画像など（合計8MBまで）。HTMLが1つだけならトップページになります</span>
+            <div class="drop-btns">
+              <label class="btn btn-outline btn-sm">Zipを選ぶ<input type="file" id="zipPick" accept=".zip,application/zip" hidden></label>
+              <label class="btn btn-outline btn-sm">ファイル<input type="file" id="filePick" multiple hidden></label>
+              <label class="btn btn-outline btn-sm">フォルダ<input type="file" id="folderPick" webkitdirectory directory hidden></label>
+            </div>
+          </div>
+          <div id="zipPages" class="hidden">
+            <span class="flabel">Page URLs — 各ページのURL</span>
+            <div id="zipPageList"></div>
+            <details class="files"><summary id="zipAllSummary">すべてのファイル</summary><div class="files-list" id="zipAllList"></div></details>
+          </div>
+          <div class="field" id="zipSlugField">
+            <label class="flabel" for="zipSlug">URL name — 任意</label>
+            <div class="slug-row"><span class="slug-prefix">/s/</span><input class="input mono" id="zipSlug" placeholder="my-site" maxlength="40"></div>
+          </div>
+          <button class="btn btn-primary btn-lg btn-block" id="zipPublish" disabled>公開する</button>
+          <div class="result" id="zipResult" style="margin:0"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- API -->
+    <div class="panel" id="panel-api">
+      <div class="card">
+        <div class="bar">
+          <span class="dot"></span>
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:rgba(239,234,223,.6)"><rect width="20" height="8" x="2" y="2" rx="2"/><rect width="20" height="8" x="2" y="14" rx="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg>
+          <span class="blabel">Response body</span>
+          <span class="edit-tag hidden" id="apiEditTag"></span>
+          <span class="bsize" id="apiSize"></span>
+        </div>
+        <div class="grid3">
+          <div class="field"><label class="flabel" for="apiMethod">Method</label>
+            <select class="input" id="apiMethod"><option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option><option>PATCH</option></select></div>
+          <div class="field"><label class="flabel" for="apiType">Content-Type</label>
+            <select class="input" id="apiType">
+              <option value="application/json">JSON</option><option value="text/plain">テキスト</option>
+              <option value="text/html">HTML</option><option value="application/xml">XML</option><option value="text/csv">CSV</option>
+            </select></div>
+          <div class="field"><label class="flabel" for="apiStatus">Status code</label>
+            <input class="input mono" id="apiStatus" value="200" maxlength="3" inputmode="numeric"></div>
+        </div>
+        <textarea class="code-area sm" id="apiInput" spellcheck="false" placeholder='{"hello": "world"}'></textarea>
+        <div class="action-row">
+          <div class="field">
+            <label class="flabel" for="apiSlug">URL name — 任意</label>
+            <div class="slug-row"><span class="slug-prefix">/api/public/e/</span><input class="input mono" id="apiSlug" placeholder="my-api" maxlength="40"></div>
+          </div>
+          <button class="btn btn-outline btn-lg hidden" id="apiCancel">キャンセル</button>
+          <button class="btn btn-primary btn-lg" id="apiPublish"></button>
+        </div>
+        <div class="result" id="apiResult"></div>
+      </div>
+    </div>
+
+    <!-- AI -->
+    <div class="panel" id="panel-ai">
+      <div class="card">
+        <div class="bar">
+          <span class="dot"></span>
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:rgba(239,234,223,.6)"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+          <span class="blabel">Gemini Assistant</span>
+          <span class="bsize">BYOK — your key only</span>
+        </div>
+        <div class="panel-body stack">
+          <div class="field">
+            <label class="flabel" for="aiKey">Gemini API Key</label>
+            <input class="input mono" type="password" id="aiKey" placeholder="AIza...">
+            <p class="help" style="margin:0">キーはこのブラウザだけに保存され、Googleに直接送られます。<a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">キーを取得する</a></p>
+          </div>
+          <div class="grid2">
+            <div class="field"><label class="flabel" for="aiMode">Task — やりたいこと</label>
+              <select class="input" id="aiMode">
+                <option value="improve">サイトを改善する</option>
+                <option value="api">APIサーバーを作る</option>
+                <option value="explain">コードを説明してもらう</option>
+                <option value="links">ページ間リンクを新URLに書き換える</option>
+              </select></div>
+            <div class="field" id="aiTargetField"><label class="flabel" for="aiTarget">Target — 対象</label>
+              <select class="input" id="aiTarget"></select></div>
+          </div>
+          <div class="field"><label class="flabel" for="aiModel">Model — 使うモデル</label>
+            <select class="input" id="aiModel">
+              <option value="gemini-3.5-flash">Gemini 3.5 Flash（速い）</option>
+              <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite（軽い）</option>
+              <option value="gemini-3.8-flash">Gemini 3.8 Flash（高精度）</option>
+            </select></div>
+          <div class="field">
+            <label class="flabel" for="aiInstruction" id="aiInstructionLabel">Request — どう改善したいですか？</label>
+            <textarea class="input" id="aiInstruction"></textarea>
+          </div>
+          <button class="btn btn-primary btn-lg btn-block" id="aiRun">AIに頼む</button>
+          <div class="answer" id="aiAnswer"></div>
+          <button class="btn btn-brand btn-lg btn-block hidden" id="aiApply">この変更を保存する（公開中のURLに反映）</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- History -->
+  <section id="history" style="scroll-margin-top:80px">
+    <div class="sec-head">
+      <p class="sec-kicker">01 — History</p>
+      <h2 class="sec-title">保存された公開URL</h2>
+    </div>
+    <div id="historyRoot"></div>
+  </section>
+
+  <!-- How to -->
+  <section id="howto" style="scroll-margin-top:80px">
+    <div class="sec-head">
+      <p class="sec-kicker">02 — How to use</p>
+      <h2 class="sec-title">使い方</h2>
+    </div>
+    <div class="howto-grid" id="howtoGrid"></div>
+  </section>
+
+  <!-- FAQ -->
+  <section id="faq" style="scroll-margin-top:80px">
+    <div class="sec-head">
+      <p class="sec-kicker">03 — FAQ</p>
+      <h2 class="sec-title">よくある質問</h2>
+    </div>
+    <div class="faq-list" id="faqList"></div>
+  </section>
+</main>
+
+<footer>
+  <div class="foot-in">
+    <p class="foot-title">貼るだけで、世界に公開<span class="accent">。</span></p>
+    <div class="foot-meta">
+      <span>Simple URL Server</span><span>/p/ — Pages</span><span>/s/ — Sites</span><span>/api/ — Mock API</span>
+      <span class="right">HTMLホスト &amp; APIサーバー（静的版）</span>
+    </div>
+  </div>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+"use strict";
+/* ===== 設定 ===== */
+const VIEW_BASE = "https://simple-url-server.lovable.app"; // 発行URLの配信サーバー
+const SB_URL = "https://vxdfcrgpwjsfjsdpdlzj.supabase.co";
+const SB_KEY = "sb_publishable_fvnkTiIDakzVG3RWp9rkfw_puNi1z1d"; // 公開用キー（ブラウザ用）
+
+/* ===== 小物 ===== */
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+let toastTimer;
+function toast(msg, isErr) {
+  const t = $("toast"); t.textContent = msg; t.className = "show" + (isErr ? " err" : "");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => (t.className = ""), 3200);
+}
+function randomSlug(len = 7) {
+  const chars = "abcdefghijkmnopqrstuvwxyz23456789"; let s = "";
+  for (let i = 0; i < len; i++) s += chars[Math.floor(Math.random() * chars.length)];
+  return s;
+}
+const slugify = (v) => v.trim().toLowerCase().replace(/[^a-z0-9-]/g, "");
+function textToB64(s) { const b = new TextEncoder().encode(s); let bin = ""; for (let i = 0; i < b.length; i += 0x8000) bin += String.fromCharCode(...b.subarray(i, i + 0x8000)); return btoa(bin); }
+function b64ToText(b) { const bin = atob(b); const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0)); return new TextDecoder().decode(bytes); }
+const MIME = { html:"text/html; charset=utf-8", htm:"text/html; charset=utf-8", css:"text/css; charset=utf-8", js:"text/javascript; charset=utf-8", mjs:"text/javascript; charset=utf-8", json:"application/json", txt:"text/plain; charset=utf-8", md:"text/plain; charset=utf-8", svg:"image/svg+xml", png:"image/png", jpg:"image/jpeg", jpeg:"image/jpeg", gif:"image/gif", webp:"image/webp", ico:"image/x-icon", woff:"font/woff", woff2:"font/woff2", ttf:"font/ttf", mp3:"audio/mpeg", mp4:"video/mp4", xml:"application/xml", csv:"text/csv" };
+const mimeFor = (p) => MIME[p.split(".").pop()?.toLowerCase() ?? ""] ?? "application/octet-stream";
+const isTextType = (t) => /^text\/|json|xml|svg|javascript/.test(t);
+
+/* ===== Supabase REST ===== */
+async function sbFetch(path, opts = {}) {
+  const res = await fetch(SB_URL + "/rest/v1/" + path, {
+    ...opts,
+    headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY, "Content-Type": "application/json", ...(opts.headers || {}) },
+  });
+  return res;
+}
+async function sbInsert(table, row) {
+  const res = await sbFetch(table, { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify(row) });
+  if (res.ok) return { ok: true };
+  let code = ""; try { code = (await res.json())?.code ?? ""; } catch {}
+  return { ok: false, code };
+}
+async function sbSelectOne(table, select, slug) {
+  const res = await sbFetch(`${table}?select=${encodeURIComponent(select)}&slug=eq.${encodeURIComponent(slug)}`);
+  if (!res.ok) return null;
+  const rows = await res.json().catch(() => []);
+  return rows[0] ?? null;
+}
+async function sbRpc(fn, params) {
+  const res = await sbFetch("rpc/" + fn, { method: "POST", body: JSON.stringify(params) });
+  if (!res.ok) return false;
+  return (await res.json().catch(() => false)) === true;
+}
+
+/* ===== 履歴（本アプリと同じ保存形式） ===== */
+const STORAGE_KEY = "published-items-v1";
+const loadItems = () => { try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); } catch { return []; } };
+function saveItems(items) { localStorage.setItem(STORAGE_KEY, JSON.stringify(items)); renderHistory(); refreshAiTargets(); }
+function addItem(item) {
+  const next = { ...item, id: crypto.randomUUID(), createdAt: Date.now() };
+  saveItems([next, ...loadItems().filter((i) => !(i.kind === item.kind && i.slug === item.slug))].slice(0, 100));
+}
+
+/* ===== アイコン ===== */
+const I = {
+  file: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="m10 13-2 2 2 2"/><path d="m14 17 2-2-2-2"/></svg>',
+  zip: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v6"/><path d="M8 5h4"/><path d="M10 8v2"/><path d="M10 12v2"/><path d="M10 16v2"/><path d="M2 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16c0 1.1.9 2 2 2Z" transform="translate(2 0)"/></svg>',
+  server: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="8" x="2" y="2" rx="2"/><rect width="20" height="8" x="2" y="14" rx="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg>',
+  bot: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>',
+  copy: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>',
+  ext: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>',
+  trash: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
+  pencil: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.2 6.8a2.4 2.4 0 0 0-3.4-3.4L4 17.2V20h2.8Z"/><path d="m15 5 3.4 3.4"/></svg>',
+  check: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="M20 6 9 17l-5-5"/></svg>',
+  plus: '<svg class="ic plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>',
+  upRight: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg>',
+  rocket: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>',
+};
+
+/* ===== タブ ===== */
+const MODES = [
+  { v: "html", n: "01", t: "HTMLページ", d: "HTMLコードを貼って公開", icon: I.file, label: "HTML" },
+  { v: "zip", n: "02", t: "ZIPサイト", d: "サイトをまるごとアップ", icon: I.zip, label: "ZIP" },
+  { v: "api", n: "03", t: "モックAPI", d: "固定レスポンスを返すAPI", icon: I.server, label: "API" },
+  { v: "ai", n: "04", t: "AIアシスタント", d: "Geminiで改善・生成・説明", icon: I.bot, label: "AI" },
+];
+let currentTab = "html";
+$("modeIndex").innerHTML = MODES.map((m) => `
+  <button class="mode-cell" data-mode="${m.v}">
+    <span class="n">${m.n}</span>
+    <span class="t">${esc(m.t)} ${I.upRight}</span>
+    <span class="d">${esc(m.d)}</span>
+  </button>`).join("");
+$("tabsList").innerHTML = MODES.map((m) => `
+  <button class="tab-btn" data-mode="${m.v}" role="tab">${m.icon} ${m.label}</button>`).join("");
+function setTab(v) {
+  currentTab = v;
+  document.querySelectorAll(".tab-btn").forEach((b) => b.classList.toggle("active", b.dataset.mode === v));
+  document.querySelectorAll(".mode-cell").forEach((b) => b.classList.toggle("active", b.dataset.mode === v));
+  document.querySelectorAll(".panel").forEach((p) => p.classList.toggle("active", p.id === "panel-" + v));
+}
+document.querySelectorAll("[data-mode]").forEach((b) => b.addEventListener("click", () => setTab(b.dataset.mode)));
+
+/* ===== 結果パネル ===== */
+function showResult(el, url, updated) {
+  el.innerHTML = `
+    <div class="result-head">
+      <span class="result-check">${I.check}</span>
+      <span class="result-title">${updated ? "更新しました" : "公開しました"}</span>
+      <span class="result-live">Live now</span>
+    </div>
+    <div class="result-row">
+      <input class="result-url" readonly value="${esc(url)}" onfocus="this.select()">
+      <button class="btn btn-outline" data-copy="${esc(url)}">${I.copy} コピー</button>
+      <a class="btn btn-open" href="${esc(url)}" target="_blank" rel="noreferrer">${I.ext} 開く</a>
+    </div>`;
+  el.classList.add("show");
+  el.querySelector("[data-copy]").addEventListener("click", () => { navigator.clipboard.writeText(url); toast("URLをコピーしました"); });
+}
+
+/* ===== HTMLタブ ===== */
+const SAMPLE_HTML = `<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>マイページ</title>
+  <style>
+    body { font-family: system-ui; text-align: center; padding: 72px 24px; background: #faf9f6; color: #1c1b17; }
+    h1 { font-size: 2.6rem; letter-spacing: -0.02em; }
+    h1 span { color: #f04e23; }
+    p { color: #6b675e; }
+  </style>
+</head>
+<body>
+  <h1>こんにちは<span>.</span></h1>
+  <p>貼るだけ公開で公開しました。</p>
+</body>
+</html>`;
+const SAMPLE_JSON = `{\n  "status": "ok",\n  "message": "Hello from your API!",\n  "items": [1, 2, 3]\n}`;
+let htmlEditing = null, apiEditing = null;
+$("htmlInput").value = SAMPLE_HTML;
+$("apiInput").value = SAMPLE_JSON;
+function sizes() {
+  $("htmlSize").textContent = `${($("htmlInput").value.length / 1024).toFixed(1)} / 500 KB`;
+  $("apiSize").textContent = `${($("apiInput").value.length / 1024).toFixed(1)} / 100 KB`;
+}
+$("htmlInput").addEventListener("input", sizes);
+$("apiInput").addEventListener("input", sizes);
+sizes();
+function publishLabel(btn, base, loading, updated) {
+  btn.innerHTML = `${I.rocket} ${loading ? (updated ? "更新中..." : "公開中...") : updated ? base[1] : base[0]}`;
+  btn.disabled = !!loading;
+}
+function renderPublishButtons() {
+  publishLabel($("htmlPublish"), ["公開する", "更新する"], false, !!htmlEditing);
+  publishLabel($("apiPublish"), ["APIを公開", "APIを更新"], false, !!apiEditing);
+  $("htmlCancel").classList.toggle("hidden", !htmlEditing);
+  $("apiCancel").classList.toggle("hidden", !apiEditing);
+  const ht = $("htmlEditTag"), at = $("apiEditTag");
+  ht.classList.toggle("hidden", !htmlEditing); if (htmlEditing) ht.textContent = "EDITING /p/" + htmlEditing.slug;
+  at.classList.toggle("hidden", !apiEditing); if (apiEditing) at.textContent = "EDITING " + apiEditing.slug;
+  $("htmlSlug").disabled = !!htmlEditing; $("apiSlug").disabled = !!apiEditing;
+}
+renderPublishButtons();
+
+$("htmlPublish").addEventListener("click", async () => {
+  const html = $("htmlInput").value;
+  if (!html.trim()) return toast("HTMLを入力してください", true);
+  const btn = $("htmlPublish"); publishLabel(btn, ["公開する", "更新する"], true, !!htmlEditing);
+  try {
+    const title = (html.match(/<title>([^<]+)<\/title>/i)?.[1] ?? "").slice(0, 200) || null;
+    if (htmlEditing) {
+      const ok = await sbRpc("update_page", { _slug: htmlEditing.slug, _token: htmlEditing.token, _html: html, _title: title ?? "" });
+      if (!ok) throw new Error("update");
+      const url = `${VIEW_BASE}/p/${htmlEditing.slug}`;
+      addItem({ kind: "html", slug: htmlEditing.slug, url, title: title ?? htmlEditing.slug, editToken: htmlEditing.token });
+      showResult($("htmlResult"), url, true); toast("更新しました");
+      return;
+    }
+    const base = slugify($("htmlSlug").value);
+    let slug = base || randomSlug();
+    const editToken = crypto.randomUUID();
+    let done = false;
+    for (let i = 0; i < 5; i++) {
+      const r = await sbInsert("pages", { slug, html, title, edit_token: editToken });
+      if (r.ok) { done = true; break; }
+      if (base) { toast("そのURL名は既に使われています", true); return; }
+      slug = randomSlug();
+    }
+    if (!done) throw new Error("insert");
+    const url = `${VIEW_BASE}/p/${slug}`;
+    addItem({ kind: "html", slug, url, title: title ?? slug, editToken });
+    showResult($("htmlResult"), url, false); toast("公開しました");
+  } catch { toast("公開に失敗しました。時間をおいて試してください", true); }
+  finally { renderPublishButtons(); }
+});
+$("htmlCancel").addEventListener("click", () => {
+  htmlEditing = null; $("htmlInput").value = SAMPLE_HTML; $("htmlSlug").value = "";
+  $("htmlResult").classList.remove("show"); sizes(); renderPublishButtons();
+});
+
+$("apiPublish").addEventListener("click", async () => {
+  const body = $("apiInput").value;
+  const method = $("apiMethod").value, contentType = $("apiType").value;
+  const statusCode = parseInt($("apiStatus").value, 10) || 200;
+  const btn = $("apiPublish"); publishLabel(btn, ["APIを公開", "APIを更新"], true, !!apiEditing);
+  try {
+    if (apiEditing) {
+      const ok = await sbRpc("update_endpoint", { _slug: apiEditing.slug, _token: apiEditing.token, _method: method, _body: body, _content_type: contentType, _status_code: statusCode });
+      if (!ok) throw new Error("update");
+      const url = `${VIEW_BASE}/api/public/e/${apiEditing.slug}`;
+      addItem({ kind: "api", slug: apiEditing.slug, url, title: apiEditing.slug, editToken: apiEditing.token, meta: { method, contentType, status: statusCode } });
+      showResult($("apiResult"), url, true); toast("APIを更新しました");
+      return;
+    }
+    const base = slugify($("apiSlug").value);
+    let slug = base || randomSlug();
+    const editToken = crypto.randomUUID();
+    let done = false;
+    for (let i = 0; i < 5; i++) {
+      const r = await sbInsert("endpoints", { slug, body, content_type: contentType, status_code: statusCode, method, edit_token: editToken });
+      if (r.ok) { done = true; break; }
+      if (base) { toast("そのURL名は既に使われています", true); return; }
+      slug = randomSlug();
+    }
+    if (!done) throw new Error("insert");
+    const url = `${VIEW_BASE}/api/public/e/${slug}`;
+    addItem({ kind: "api", slug, url, title: slug, editToken, meta: { method, contentType, status: statusCode } });
+    showResult($("apiResult"), url, false); toast("APIを公開しました");
+  } catch { toast("公開に失敗しました。時間をおいて試してください", true); }
+  finally { renderPublishButtons(); }
+});
+$("apiCancel").addEventListener("click", () => {
+  apiEditing = null; $("apiInput").value = SAMPLE_JSON; $("apiSlug").value = "";
+  $("apiResult").classList.remove("show"); sizes(); renderPublishButtons();
+});
+
+/* ===== ZIPタブ ===== */
+const MAX_BYTES = 8 * 1024 * 1024;
+let zipFiles = null, zipName = "", zipEditing = null;
+async function readZip(file) {
+  const zip = await JSZip.loadAsync(file);
+  const entries = Object.values(zip.files).filter((f) => !f.dir && !f.name.startsWith("__MACOSX/") && !f.name.split("/").pop().startsWith("."));
+  const out = {};
+  for (const e of entries) out[e.name] = { t: mimeFor(e.name), b: await e.async("base64") };
+  return out;
+}
+function fileToB64(file) {
+  return new Promise((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(String(r.result).split(",")[1] ?? ""); r.onerror = reject; r.readAsDataURL(file); });
+}
+function normalizeZip(out) {
+  const names = Object.keys(out);
+  if (out["index.html"]) return out;
+  const idx = names.filter((n) => n.endsWith("index.html")).sort((a, b) => a.length - b.length)[0];
+  if (idx) {
+    const prefix = idx.slice(0, -"index.html".length);
+    const stripped = {};
+    for (const n of names) if (n.startsWith(prefix)) stripped[n.slice(prefix.length)] = out[n];
+    return stripped;
+  }
+  const top = names[0]?.split("/")[0];
+  let res = out;
+  if (names.length && names.every((n) => n.includes("/") && n.split("/")[0] === top)) {
+    res = {}; for (const n of names) res[n.slice(top.length + 1)] = out[n];
+  }
+  const htmls = Object.keys(res).filter((n) => /\.html?$/i.test(n));
+  if (htmls.length === 1) res = { ...res, "index.html": res[htmls[0]] };
+  return res;
+}
+async function onPick(list) {
+  const picked = list ? Array.from(list) : [];
+  if (!picked.length) return;
+  if (picked.reduce((s, f) => s + f.size, 0) > MAX_BYTES) return toast("合計8MB以下にしてください", true);
+  try {
+    let out = {};
+    for (const file of picked) {
+      const rel = file.webkitRelativePath || file.name;
+      if (rel.split("/").pop().startsWith(".")) continue;
+      if (/\.zip$/i.test(file.name)) out = { ...out, ...(await readZip(file)) };
+      else out[rel] = { t: mimeFor(rel), b: await fileToB64(file) };
+    }
+    const f = normalizeZip(out);
+    if (!Object.keys(f).length) return toast("ファイルが見つかりませんでした", true);
+    if (!f["index.html"]) toast("index.html が見つかりません。トップページが表示されない可能性があります");
+    zipFiles = f; zipName = picked.length === 1 ? picked[0].name : `${picked.length}個のファイル`;
+    renderZip();
+  } catch { toast("ファイルを読み込めませんでした", true); }
+}
+function renderZip() {
+  $("zipDrop").classList.toggle("has", !!zipFiles);
+  $("zipFileName").textContent = zipName || "Zip・ファイル・フォルダを選択";
+  $("zipPublish").disabled = !zipFiles;
+  $("zipPublish").textContent = zipEditing ? "上書き保存" : "公開する";
+  const names = zipFiles ? Object.keys(zipFiles).sort() : [];
+  $("zipPages").classList.toggle("hidden", !names.length);
+  if (!names.length) return;
+  const slugShown = zipEditing?.slug || slugify($("zipSlug").value) || "（URL名）";
+  $("zipPageList").innerHTML = names.filter((n) => /\.html?$/i.test(n)).map((n) => {
+    const shown = n === "index.html" ? "" : n.replace(/(\/index)?\.html?$/i, "");
+    return `<div class="page-row"><span class="mono" style="color:var(--muted);flex:none">/s/${esc(slugShown)}/</span>
+      <input class="input mono" data-page="${esc(n)}" value="${esc(shown)}" placeholder="（トップページ）"></div>`;
+  }).join("");
+  $("zipPageList").querySelectorAll("[data-page]").forEach((inp) => inp.addEventListener("blur", () => renamePage(inp.dataset.page, inp.value)));
+  $("zipAllSummary").textContent = `すべてのファイル（${names.length}）`;
+  $("zipAllList").innerHTML = names.map((n) => `<div>${esc(n)}</div>`).join("");
+}
+function renamePage(oldPath, input) {
+  if (!zipFiles) return;
+  const clean = input.trim().replace(/^\/+|\/+$/g, "").replace(/[^a-zA-Z0-9\-_/]/g, "");
+  const next = clean === "" ? "index.html" : `${clean}.html`;
+  if (next === oldPath) return;
+  if (zipFiles[next]) return toast("そのURLは既に使われています", true);
+  const copy = {};
+  for (const [k, v] of Object.entries(zipFiles)) copy[k === oldPath ? next : k] = v;
+  zipFiles = copy; renderZip(); toast(`/${clean} に変更しました（公開/上書き保存で反映）`);
+}
+$("zipPick").addEventListener("change", (e) => onPick(e.target.files));
+$("filePick").addEventListener("change", (e) => onPick(e.target.files));
+$("folderPick").addEventListener("change", (e) => onPick(e.target.files));
+$("zipSlug").addEventListener("input", renderZip);
+$("zipCancelEdit").addEventListener("click", () => {
+  zipEditing = null; zipFiles = null; zipName = ""; $("zipSlug").value = "";
+  $("zipBarLabel").textContent = "Site upload"; $("zipCancelEdit").classList.add("hidden");
+  $("zipSlugField").classList.remove("hidden"); $("zipResult").classList.remove("show"); renderZip();
+});
+$("zipPublish").addEventListener("click", async () => {
+  if (!zipFiles) return toast("ファイルを選んでください", true);
+  const btn = $("zipPublish"); btn.disabled = true; btn.textContent = "アップロード中…";
+  try {
+    const title = zipName.replace(/\.zip$/i, "");
+    if (zipEditing) {
+      const ok = await sbRpc("update_site", { _slug: zipEditing.slug, _token: zipEditing.token, _files: zipFiles, _title: title });
+      if (!ok) throw new Error("update");
+      const u = `${VIEW_BASE}/s/${zipEditing.slug}/`;
+      addItem({ kind: "site", slug: zipEditing.slug, url: u, title, editToken: zipEditing.token });
+      showResult($("zipResult"), u, true); toast("更新しました");
+      return;
+    }
+    const base = slugify($("zipSlug").value);
+    let slug = base || randomSlug();
+    const token = crypto.randomUUID();
+    let done = false;
+    for (let i = 0; i < 5; i++) {
+      const r = await sbInsert("sites", { slug, files: zipFiles, title, edit_token: token });
+      if (r.ok) { done = true; break; }
+      if (base) { toast("そのURL名は既に使われています", true); return; }
+      slug = randomSlug();
+    }
+    if (!done) throw new Error("insert");
+    const u = `${VIEW_BASE}/s/${slug}/`;
+    addItem({ kind: "site", slug, url: u, title, editToken: token });
+    showResult($("zipResult"), u, false); toast("公開しました");
+  } catch { toast("公開に失敗しました。時間をおいて試してください", true); }
+  finally { btn.disabled = !zipFiles; btn.textContent = zipEditing ? "上書き保存" : "公開する"; }
+});
+
+/* ===== 履歴 ===== */
+function renderHistory() {
+  const items = loadItems();
+  const root = $("historyRoot");
+  if (!items.length) {
+    root.innerHTML = `<div class="empty"><b>まだ何も公開していません</b><p>公開すると、自動的にここへ保存されます。</p></div>`;
+    return;
+  }
+  root.innerHTML = `
+    <div class="hist-meta">
+      <span class="hist-count">${items.length} items — this browser only</span>
+      <button class="link-btn" id="histClear">すべて削除</button>
+    </div>
+    <div class="hist-list">${items.map((item) => `
+      <div class="hist-item"><div class="hist-row">
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="kind ${item.kind === "api" ? "api" : ""}">${item.kind === "html" ? I.file + " HTML" : item.kind === "site" ? I.zip + " ZIP" : I.server + " " + esc(item.meta?.method ?? "API")}</span>
+            <span class="hist-title">${esc(item.title || item.slug)}</span>
+            ${item.editToken ? '<span class="editable"><span class="dot"></span>編集可</span>' : ""}
+          </div>
+          <a class="hist-url" href="${esc(item.url)}" target="_blank" rel="noreferrer">${esc(item.url)}</a>
+        </div>
+        <div class="hist-btns">
+          ${item.editToken ? `<button class="btn btn-outline btn-sm" data-edit="${item.id}">${I.pencil} 編集</button>` : ""}
+          <button class="btn btn-outline btn-sm icon-btn" data-copyurl="${esc(item.url)}" title="コピー">${I.copy}</button>
+          <a class="btn btn-outline btn-sm icon-btn" href="${esc(item.url)}" target="_blank" rel="noreferrer" title="開く">${I.ext}</a>
+          <button class="btn btn-sm icon-btn" data-del="${item.id}" title="履歴から削除" style="color:var(--muted)">${I.trash}</button>
+        </div>
+      </div></div>`).join("")}
+    </div>`;
+  root.querySelector("#histClear").addEventListener("click", () => { if (confirm("履歴をすべて削除しますか？")) saveItems([]); });
+  root.querySelectorAll("[data-copyurl]").forEach((b) => b.addEventListener("click", () => { navigator.clipboard.writeText(b.dataset.copyurl); toast("URLをコピーしました"); }));
+  root.querySelectorAll("[data-del]").forEach((b) => b.addEventListener("click", () => saveItems(loadItems().filter((i) => i.id !== b.dataset.del))));
+  root.querySelectorAll("[data-edit]").forEach((b) => b.addEventListener("click", () => startEdit(loadItems().find((i) => i.id === b.dataset.edit))));
+}
+async function startEdit(item) {
+  if (!item?.editToken) return;
+  if (item.kind === "html") {
+    const data = await sbSelectOne("pages", "html,slug", item.slug);
+    if (!data) return toast("読み込みに失敗しました", true);
+    $("htmlInput").value = data.html; $("htmlSlug").value = data.slug;
+    htmlEditing = { slug: data.slug, token: item.editToken };
+    showResult($("htmlResult"), item.url, true); setTab("html"); sizes(); renderPublishButtons();
+    window.scrollTo({ top: 0, behavior: "smooth" }); toast(`編集モード: /p/${data.slug}`);
+  } else if (item.kind === "api") {
+    const data = await sbSelectOne("endpoints", "body,slug,method,content_type,status_code", item.slug);
+    if (!data) return toast("読み込みに失敗しました", true);
+    $("apiInput").value = data.body; $("apiMethod").value = data.method; $("apiType").value = data.content_type;
+    $("apiStatus").value = String(data.status_code); $("apiSlug").value = data.slug;
+    apiEditing = { slug: data.slug, token: item.editToken };
+    showResult($("apiResult"), item.url, true); setTab("api"); sizes(); renderPublishButtons();
+    window.scrollTo({ top: 0, behavior: "smooth" }); toast(`編集モード: /api/public/e/${data.slug}`);
+  } else {
+    zipEditing = { slug: item.slug, token: item.editToken };
+    $("zipSlug").value = item.slug; $("zipSlugField").classList.add("hidden");
+    $("zipBarLabel").textContent = "Editing — " + item.slug;
+    $("zipCancelEdit").classList.remove("hidden");
+    zipFiles = null; zipName = ""; showResult($("zipResult"), item.url, true);
+    setTab("zip"); renderZip(); window.scrollTo({ top: 0, behavior: "smooth" });
+    toast("新しいファイルを選ぶと、このサイトを上書きします");
+  }
+}
+
+/* ===== AIタブ ===== */
+const KEY_STORAGE = "gemini-api-key", MODEL_STORAGE = "gemini-model";
+let aiPending = null;
+$("aiKey").value = localStorage.getItem(KEY_STORAGE) ?? "";
+const savedModel = localStorage.getItem(MODEL_STORAGE);
+if (savedModel && [...$("aiModel").options].some((o) => o.value === savedModel)) $("aiModel").value = savedModel;
+function aiTargets() {
+  const mode = $("aiMode").value, items = loadItems();
+  return items.filter((i) => mode === "improve" ? i.editToken && (i.kind === "html" || i.kind === "site")
+    : mode === "links" ? i.editToken && i.kind === "site" : mode === "explain");
+}
+function refreshAiTargets() {
+  const sel = $("aiTarget"), cur = sel.value;
+  const targets = aiTargets();
+  sel.innerHTML = targets.length
+    ? targets.map((i) => `<option value="${i.id}">[${i.kind === "site" ? "Zip" : i.kind === "html" ? "HTML" : "API"}] ${esc(i.title || i.slug)}</option>`).join("")
+    : `<option value="">公開済みのものがありません</option>`;
+  if (targets.some((i) => i.id === cur)) sel.value = cur;
+  $("aiTargetField").style.display = $("aiMode").value === "api" ? "none" : "";
+  const labels = { links: "New URLs — 1行に「ファイル → 新URL」", api: "Request — どんなAPIが欲しいですか？", improve: "Request — どう改善したいですか？", explain: "Question — 特に知りたいこと（任意）" };
+  $("aiInstructionLabel").textContent = labels[$("aiMode").value];
+  const ph = { api: "例: 日本の都道府県と人口の一覧を返すAPI", improve: "例: スマホでも見やすくして、色をもっと明るくして", explain: "例: このJSは何をしていますか？", links: "" };
+  $("aiInstruction").placeholder = ph[$("aiMode").value] ?? "";
+  $("aiInstruction").rows = $("aiMode").value === "links" ? 6 : 3;
+}
+$("aiMode").addEventListener("change", () => { aiPending = null; $("aiApply").classList.add("hidden"); $("aiAnswer").classList.remove("show"); refreshAiTargets(); });
+$("aiTarget").addEventListener("change", async () => {
+  if ($("aiMode").value !== "links") return;
+  const item = loadItems().find((i) => i.id === $("aiTarget").value);
+  if (!item) return;
+  const data = await sbSelectOne("sites", "files", item.slug);
+  const pages = Object.keys(data?.files ?? {}).filter((p) => /\.html?$/i.test(p));
+  $("aiInstruction").value = pages.map((p) => `${p} → /s/${item.slug}/${p === "index.html" ? "" : p.replace(/\.html?$/i, "")}`).join("\n");
+});
+async function callGemini(model, key, prompt, json) {
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-goog-api-key": key },
+    body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: json ? { responseMimeType: "application/json" } : {} }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const msg = data?.error?.message ?? `エラー (${res.status})`;
+    if (res.status === 400 || res.status === 403) throw new Error(`APIキーを確認してください: ${msg}`);
+    if (res.status === 429) throw new Error("Geminiの利用上限に達しました。しばらく待ってから試してください");
+    throw new Error(msg);
+  }
+  const text = data?.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
+  if (!text) throw new Error("AIから回答がありませんでした");
+  return text;
+}
+async function loadContent(item) {
+  if (item.kind === "html") { const d = await sbSelectOne("pages", "html", item.slug); return { item, files: { "index.html": d?.html ?? "" } }; }
+  if (item.kind === "api") { const d = await sbSelectOne("endpoints", "body", item.slug); return { item, files: { response: d?.body ?? "" } }; }
+  const d = await sbSelectOne("sites", "files", item.slug);
+  const files = {};
+  for (const [p, f] of Object.entries(d?.files ?? {})) if (isTextType(f.t)) files[p] = b64ToText(f.b);
+  return { item, files };
+}
+const filesToPrompt = (files) => Object.entries(files).map(([p, c]) => `--- ${p} ---\n${c}`).join("\n\n").slice(0, 400000);
+function setAiLoading(on) { $("aiRun").disabled = on; $("aiRun").textContent = on ? "AIが考えています…" : "AIに頼む"; }
+$("aiRun").addEventListener("click", async () => {
+  const mode = $("aiMode").value, key = $("aiKey").value.trim(), model = $("aiModel").value;
+  const instruction = $("aiInstruction").value;
+  if (!key) return toast("Gemini APIキーを入力してください", true);
+  localStorage.setItem(KEY_STORAGE, key); localStorage.setItem(MODEL_STORAGE, model);
+  setAiLoading(true); $("aiAnswer").classList.remove("show"); aiPending = null; $("aiApply").classList.add("hidden");
+  const showAnswer = (t) => { const a = $("aiAnswer"); a.textContent = t; a.classList.add("show"); };
+  try {
+    if (mode === "links") {
+      const item = loadItems().find((i) => i.id === $("aiTarget").value);
+      if (!item?.editToken) throw new Error("対象のサイトを選んでください");
+      if (!instruction.trim()) throw new Error("新しいURL一覧を入力してください");
+      const data = await sbSelectOne("sites", "files", item.slug);
+      if (!data?.files) throw new Error("サイトが見つかりませんでした");
+      const files = { ...data.files };
+      const changed = [];
+      for (const path of Object.keys(files).filter((p) => /\.html?$/i.test(p)).slice(0, 30)) {
+        const html = b64ToText(files[path].b);
+        if (html.length > 200000) continue;
+        let out = await callGemini(model, key,
+          `You rewrite links between pages of a static website. Change ONLY href/src/action attributes and JavaScript location strings that point to other pages of this site, so they use the new URLs given by the site owner. Keep everything else byte-for-byte identical. Leave external links, CSS, images and scripts unchanged. Output ONLY the full HTML, no explanations, no code fences.\n\nSite URL base: /s/${item.slug}/\nCurrent file being edited: ${path}\n\nAll files in the site:\n${Object.keys(files).join("\n")}\n\nNew page URL list from the site owner:\n${instruction}\n\nHTML:\n${html}`, false);
+        out = out.trim().replace(/^```(?:html)?\s*/i, "").replace(/```\s*$/, "").trim();
+        if (out && out !== html.trim() && /<\/?[a-z]/i.test(out)) { files[path] = { t: files[path].t, b: textToB64(out) }; changed.push(path); }
+      }
+      if (changed.length) {
+        const ok = await sbRpc("update_site", { _slug: item.slug, _token: item.editToken, _files: files, _title: item.title });
+        if (!ok) throw new Error("保存に失敗しました");
+        showAnswer(`リンクを書き換えて保存しました\n${item.url}\n\n変更したページ: ${changed.join(", ")}`);
+      } else showAnswer("変更が必要なリンクは見つかりませんでした");
+      return;
+    }
+    if (mode === "api") {
+      if (!instruction.trim()) throw new Error("作りたいAPIを入力してください");
+      const text = await callGemini(model, key,
+        `あなたはモックAPIの作成者です。次の要望に合うAPIレスポンスを作ってください。\n要望: ${instruction}\n` +
+        `JSONで {"method":"GET|POST|PUT|DELETE|PATCH","content_type":"application/json など","status_code":200,"body":"レスポンス本文の文字列（100KB以内）","summary":"日本語での短い説明"} を返してください。`, true);
+      const r = JSON.parse(text);
+      const slug = randomSlug(), token = crypto.randomUUID();
+      const method = ["GET", "POST", "PUT", "DELETE", "PATCH"].includes(r.method) ? r.method : "GET";
+      const body = typeof r.body === "string" ? r.body : JSON.stringify(r.body, null, 2);
+      const status = Number(r.status_code) >= 100 && Number(r.status_code) <= 599 ? Number(r.status_code) : 200;
+      const ct = typeof r.content_type === "string" ? r.content_type : "application/json";
+      const ins = await sbInsert("endpoints", { slug, method, body: body.slice(0, 100000), content_type: ct, status_code: status, edit_token: token });
+      if (!ins.ok) throw new Error("APIの保存に失敗しました");
+      const url = `${VIEW_BASE}/api/public/e/${slug}`;
+      addItem({ kind: "api", slug, url, title: r.summary?.slice(0, 80) || slug, editToken: token, meta: { method, contentType: ct, status } });
+      showAnswer(`APIを作成しました\n${url}\n\n${r.summary ?? ""}\n\n${body.slice(0, 2000)}`);
+      return;
+    }
+    const item = loadItems().find((i) => i.id === $("aiTarget").value);
+    if (!item) throw new Error("対象を選んでください");
+    const loaded = await loadContent(item);
+    if (mode === "explain") {
+      const text = await callGemini(model, key,
+        `次のコードを日本語で分かりやすく説明し、問題点と改善案を挙げてください。${instruction ? `\n特に知りたいこと: ${instruction}` : ""}\n\n${filesToPrompt(loaded.files)}`, false);
+      showAnswer(text);
+      return;
+    }
+    if (!instruction.trim()) throw new Error("どう改善したいか入力してください");
+    const text = await callGemini(model, key,
+      `あなたはWeb制作者です。次のサイトを要望どおりに改善してください。\n要望: ${instruction}\n\n${filesToPrompt(loaded.files)}\n\n` +
+      `JSONで {"summary":"日本語での変更内容","files":[{"path":"ファイルパス","content":"変更後のファイル全文"}]} を返してください。変更したファイル（または新しいファイル）だけを含めてください。`, true);
+    const r = JSON.parse(text);
+    const changes = (Array.isArray(r.files) ? r.files : []).filter((f) => typeof f.path === "string" && typeof f.content === "string");
+    if (!changes.length) throw new Error("変更内容がありませんでした");
+    aiPending = { loaded, changes };
+    $("aiApply").classList.remove("hidden");
+    showAnswer(`${r.summary ?? ""}\n\n変更するファイル: ${changes.map((c) => c.path).join(", ")}`);
+  } catch (e) { toast(e instanceof Error ? e.message : "失敗しました", true); }
+  finally { setAiLoading(false); }
+});
+$("aiApply").addEventListener("click", async () => {
+  if (!aiPending) return;
+  const { item } = aiPending.loaded, token = item.editToken;
+  setAiLoading(true);
+  try {
+    if (item.kind === "html") {
+      const html = aiPending.changes.find((c) => c.path === "index.html")?.content ?? aiPending.changes[0].content;
+      const title = html.match(/<title>([^<]+)<\/title>/i)?.[1]?.slice(0, 200) ?? item.title;
+      const ok = await sbRpc("update_page", { _slug: item.slug, _token: token, _html: html, _title: title });
+      if (!ok) throw new Error("update failed");
+    } else {
+      const data = await sbSelectOne("sites", "files", item.slug);
+      const files = { ...(data?.files ?? {}) };
+      for (const c of aiPending.changes) { const p = c.path.replace(/^\/+/, ""); files[p] = { t: files[p]?.t ?? mimeFor(p), b: textToB64(c.content) }; }
+      const ok = await sbRpc("update_site", { _slug: item.slug, _token: token, _files: files, _title: item.title });
+      if (!ok) throw new Error("update failed");
+    }
+    toast("保存しました。URLを開いて確認してください");
+    const a = $("aiAnswer"); a.textContent = `保存済み: ${item.url}\n\n${a.textContent}`; a.classList.add("show");
+    aiPending = null; $("aiApply").classList.add("hidden");
+  } catch { toast("保存に失敗しました", true); }
+  finally { setAiLoading(false); }
+});
+
+/* ===== 使い方・FAQ ===== */
+const HOWTO = [
+  { icon: I.file, t: "HTMLページ", path: "/p/xxx", note: "CSS・JavaScript埋め込み可。最大500KB。", steps: ["HTMLタブにコードを貼る", "URL名を指定（任意。空欄なら自動生成）", "「公開する」を押してURLをシェア", "履歴の「編集」で後から差し替え可能"] },
+  { icon: I.zip, t: "ZIPサイト", path: "/s/xxx", note: "合計8MBまで。ページごとのURLも変更できます。", steps: ["ZIP・ファイル・フォルダを選ぶ", "index.html がトップページになります", "「公開する」を押してURLをシェア", "履歴の「編集」でファイルを上書き可能"] },
+  { icon: I.server, t: "モックAPI", path: "/api/public/e/xxx", note: "CORS対応済み。最大100KB。", steps: ["レスポンスボディ（JSON等）を入力", "メソッド・Content-Type・ステータスを選択", "「APIを公開」して fetch で呼び出す", "履歴の「編集」でレスポンスを更新可能"] },
+  { icon: I.bot, t: "AIアシスタント", path: "Gemini", note: "APIキーはこのブラウザだけに保存されます。", steps: ["Gemini APIキーを入力", "やりたいことと対象を選ぶ", "指示を書いて「AIに頼む」", "改善案は確認してから保存を押す"] },
+];
+$("howtoGrid").innerHTML = HOWTO.map((g) => `
+  <div class="howto-cell">
+    <div class="howto-head">${g.icon}<h3>${esc(g.t)}</h3><code class="howto-path">${esc(g.path)}</code></div>
+    <ol>${g.steps.map((s, i) => `<li><span class="sn">${String(i + 1).padStart(2, "0")}</span><span>${esc(s)}</span></li>`).join("")}</ol>
+    <p class="howto-note">${esc(g.note)}</p>
+  </div>`).join("");
+const FAQ = [
+  { q: "公開後に内容を変更できますか？", a: "はい。同じブラウザで作成したものは「保存された公開URL」の「編集」ボタンから差し替えできます。編集キーはこのブラウザに保存されているため、別ブラウザからは編集できません。" },
+  { q: "動的なサーバー処理はできますか？", a: "APIはモックとして固定のレスポンスを返します。フロントエンドの開発やテスト用途に最適です。HTMLページ内のJavaScriptはそのまま動きます。" },
+  { q: "有効期限はありますか？", a: "特にありません。URLを知っている人だけがアクセスできます。" },
+  { q: "料金はかかりますか？", a: "かかりません。登録も不要です。AI機能だけ、ご自身のGemini APIキーが必要です（キーはブラウザ内にのみ保存されます）。" },
+  { q: "この静的版と通常版の違いは？", a: "見た目と機能は同じです。静的版はこのファイル1枚で動き、データの保存とURLの配信は公開サーバー（simple-url-server.lovable.app）が担当します。" },
+];
+$("faqList").innerHTML = FAQ.map((f) => `
+  <details class="faq-item"><summary>${esc(f.q)} ${I.plus}</summary><p>${esc(f.a)}</p></details>`).join("");
+
+/* ===== 初期化 ===== */
+setTab("html");
+renderHistory();
+refreshAiTargets();
+</script>
+</body>
+</html>
