@@ -124,25 +124,41 @@ const KEY = new URLSearchParams(location.search).get("key") || "";
 const HIST_KEY = "sus-embed-history-" + (KEY || "none");
 let keyValid = false, keyChecked = false;
 
-async function sbInsert(table, body) {
-  const res = await fetch(`${SB_URL}/rest/v1/${table}`, {
+async function sbRpc(name, args) {
+  const res = await fetch(`${SB_URL}/rest/v1/rpc/${name}`, {
     method: "POST",
-    headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, "content-type": "application/json", Prefer: "return=minimal" },
-    body: JSON.stringify(body),
+    headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, "content-type": "application/json" },
+    body: JSON.stringify(args),
   });
-  return res;
+  const data = await res.json().catch(() => null);
+  return { ok: res.ok, status: res.status, data };
 }
-function checkKey() {
+const isInvalidKey = (r) => !r.ok && typeof r.data?.message === "string" && r.data.message.includes("invalid_key");
+const isDuplicate = (r) => !r.ok && (r.data?.code === "23505" || (typeof r.data?.message === "string" && r.data.message.includes("duplicate key")));
+async function checkKey() {
   const badge = $("keyState");
-  keyChecked = true;
-  if (/^sus_[a-z0-9]{16,}$/i.test(KEY)) {
-    keyValid = true;
-    badge.textContent = "キーOK";
-    badge.classList.add("ok");
-  } else {
-    badge.textContent = "キー未設定"; badge.classList.add("bad");
+  if (!/^sus_[a-z0-9]{16,}$/i.test(KEY)) {
+    badge.textContent = "キー未設定"; badge.classList.add("bad"); keyChecked = true;
     setStatus("埋め込みキーが設定されていません。Simple URL Serverの設定でキーを発行し、埋め込みコードを取り直してください", true);
+    return;
   }
+  try {
+    const r = await sbRpc("embed_check_key", { _key: KEY });
+    if (!r.ok) throw new Error("rpc");
+    keyChecked = true;
+    if (r.data === true) { keyValid = true; badge.textContent = "キー確認済み"; badge.classList.add("ok"); }
+    else { badge.textContent = "キー無効"; badge.classList.add("bad"); setStatus("このキーは発行されていないか、失効しています。Simple URL Serverの設定で発行したキーを埋め込んでください", true); }
+  } catch {
+    /* 照合先に届かない環境では形式チェックのみで通す */
+    keyChecked = true; keyValid = true;
+    badge.textContent = "キー形式OK";
+  }
+}
+function markInvalidKey() {
+  keyValid = false;
+  const badge = $("keyState");
+  badge.textContent = "キー無効"; badge.classList.add("bad"); badge.classList.remove("ok");
+  setStatus("このキーでは公開できません。発行されていないか、失効しています", true);
 }
 function keyGate() {
   if (!keyChecked) { setStatus("キーを確認しています…", false); return false; }
@@ -184,10 +200,14 @@ $("publishHtml").addEventListener("click", async () => {
     const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
     let done = false;
     for (let i = 0; i < 5; i++) {
-      const r = await sbInsert("pages", { slug, html, title: titleMatch?.[1]?.trim().slice(0, 80) || "ページ", edit_token: token });
+      const r = await sbRpc("embed_publish_page", { _key: KEY, _slug: slug, _html: html, _title: titleMatch?.[1]?.trim().slice(0, 80) || "ページ", _token: token });
       if (r.ok) { done = true; break; }
-      if (base && i === 0) { setStatus("そのURL名は既に使われています。別のURL名にしてください", true); return; }
-      slug = randomSlug();
+      if (isInvalidKey(r)) { markInvalidKey(); return; }
+      if (isDuplicate(r)) {
+        if (base && i === 0) { setStatus("そのURL名は既に使われています。別のURL名にしてください", true); return; }
+        slug = randomSlug(); continue;
+      }
+      throw new Error("insert");
     }
     if (!done) throw new Error("insert");
     showResult(`${VIEW_BASE}/p/${slug}`);
@@ -250,10 +270,14 @@ $("publishFiles").addEventListener("click", async () => {
     const token = crypto.randomUUID();
     let done = false;
     for (let i = 0; i < 5; i++) {
-      const r = await sbInsert("sites", { slug, files: pickedFiles, title: "埋め込みから公開", edit_token: token });
+      const r = await sbRpc("embed_publish_site", { _key: KEY, _slug: slug, _files: pickedFiles, _title: "埋め込みから公開", _token: token });
       if (r.ok) { done = true; break; }
-      if (base && i === 0) { setStatus("そのURL名は既に使われています。別のURL名にしてください", true); return; }
-      slug = randomSlug();
+      if (isInvalidKey(r)) { markInvalidKey(); return; }
+      if (isDuplicate(r)) {
+        if (base && i === 0) { setStatus("そのURL名は既に使われています。別のURL名にしてください", true); return; }
+        slug = randomSlug(); continue;
+      }
+      throw new Error("insert");
     }
     if (!done) throw new Error("insert");
     showResult(`${VIEW_BASE}/s/${slug}/`);
