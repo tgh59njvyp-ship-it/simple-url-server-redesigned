@@ -303,6 +303,20 @@ footer{background:var(--ink);color:var(--paper)}
       <input class="input mono" type="password" id="setAiKey" placeholder="AIza...">
       <p class="help" style="margin:0">「AI」タブと、「サーバー」タブのAI生成で使います。<a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">AI Studioで無料で取得</a></p></div>
   </div>
+  <div class="set-block">
+    <p class="set-title">連携 — 埋め込み（発行キー）</p>
+    <p class="help" style="margin:0 0 12px">このサイトの公開機能を、あなたの他のサイトに埋め込めます。キーを発行して、下のコードを埋め込み先のページに貼るだけです。</p>
+    <div class="field"><label class="flabel" for="setEmbedKey">発行キー</label>
+      <input class="input mono" id="setEmbedKey" readonly placeholder="まだ発行されていません"></div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px">
+      <button class="btn btn-primary" id="setEmbedIssue">キーを発行する</button>
+      <span class="status-line" id="setEmbedStatus"></span>
+    </div>
+    <div class="field" style="margin-top:14px"><label class="flabel" for="setEmbedCode">埋め込みコード</label>
+      <textarea class="code-area sm" id="setEmbedCode" readonly style="min-height:64px" placeholder="キーを発行すると、ここにコードが出ます"></textarea></div>
+    <button class="btn btn-outline" id="setEmbedCopy" style="margin-top:10px">埋め込みコードをコピー</button>
+    <p class="help">キーはこのブラウザに保存されます。再発行すると新しいキーに置き換わります（埋め込み先のコードも貼り直してください）。</p>
+  </div>
 </div>
 
 
@@ -1496,6 +1510,7 @@ function openSettings() {
   $("setSbToken").value = localStorage.getItem(SV_TOKEN_KEY) || "";
   $("setSbRef").value = localStorage.getItem(SV_REF_KEY) || "vxdfcrgpwjsfjsdpdlzj";
   $("setAiKey").value = localStorage.getItem(KEY_STORAGE) || "";
+  refreshEmbedUI();
   $("settingsBackdrop").classList.remove("hidden");
   $("settingsSheet").classList.remove("hidden");
 }
@@ -1585,6 +1600,25 @@ ${want}`, true);
   } finally { btn.disabled = false; btn.textContent = "AIでコードを生成する"; }
 }
 
+/* ===== 埋め込み連携（発行キー） ===== */
+const EMBED_KEY_STORAGE = "sus-embed-key";
+const EMBED_BASE = "https://tgh59njvyp-ship-it.github.io/simple-url-server-redesigned/";
+function embedCodeFor(key) { return `<script src="${EMBED_BASE}embed.js" data-key="${key}"></scr` + "ipt>"; }
+function refreshEmbedUI() {
+  const key = localStorage.getItem(EMBED_KEY_STORAGE) || "";
+  $("setEmbedKey").value = key;
+  $("setEmbedCode").value = key ? embedCodeFor(key) : "";
+}
+function issueEmbedKey() {
+  const key = "sus_" + randomSlug(24);
+  localStorage.setItem(EMBED_KEY_STORAGE, key);
+  refreshEmbedUI();
+  const st = $("setEmbedStatus");
+  st.textContent = "発行しました。下のコードを埋め込み先に貼ってください";
+  st.classList.remove("err");
+  toast("キーを発行しました");
+}
+
 function initFeatures() {
   $("svCode").value = SAMPLE_FN;
   /* 設定メニュー */
@@ -1619,6 +1653,14 @@ function initFeatures() {
   });
   bindMode("ghMode", "ghProjectDirWrap", "ghBuildHelp");
   bindMode("zipMode", "zipProjectDirWrap", "zipBuildHelp");
+  /* 埋め込みキー */
+  $("setEmbedIssue").addEventListener("click", issueEmbedKey);
+  $("setEmbedCopy").addEventListener("click", () => {
+    const code = $("setEmbedCode").value;
+    if (!code) return toast("先にキーを発行してください", true);
+    navigator.clipboard?.writeText(code);
+    toast("埋め込みコードをコピーしました");
+  });
 }
 
 /* ===== 使い方・FAQ ===== */
@@ -1643,6 +1685,7 @@ const FAQ = [
   { q: "料金はかかりますか？", a: "かかりません。登録も不要です。AI機能だけ、ご自身のGemini APIキーが必要です（キーはブラウザ内にのみ保存されます）。" },
   { q: "この静的版と通常版の違いは？", a: "見た目と機能は同じです。静的版はこのファイル1枚で動き、データの保存とURLの配信は公開サーバー（simple-url-server.lovable.app）が担当します。" },
   { q: "TypeScriptのサイトも公開できますか？", a: "はい。GitHub／ZIPの取り込みで「TypeScriptをビルドして公開」を選ぶと、このブラウザの中でビルドしてから成果物だけを公開します。Vite型のプロジェクト（index.html が .ts を読み込んでいるもの）に対応し、プロジェクトがサブフォルダ（例：app）にある場合は自動判定、またはフォルダ名の指定ができます。Reactなどの依存パッケージは公開CDN（esm.sh）から読み込む形になります。" },
+  { q: "公開機能を自分のサイトに埋め込めますか？", a: "はい。右上の「設定」→「連携 — 埋め込み」でキーを発行し、表示されるコードを埋め込み先のページに貼ると、そのページに公開フォーム（HTML貼付／ファイル・ZIP）が表示され、そこから直接公開できるようになります。" },
   { q: "GitHubのリポジトリを公開する際の注意は？", a: "中身がそのまま静的サイトとして公開されます。TypeScriptなどビルドが必要なプロジェクトは、公開方法で「TypeScriptをビルドして公開」を選べばこのブラウザ内でビルドできます。.env は除外されます。非公開リポジトリにはご自身のGitHubトークンが必要です（ブラウザ内にのみ保存）。" },
   { q: "サーバー機能の料金は？", a: "デプロイ先はご自身のSupabaseプロジェクトで、無料枠の範囲なら追加料金はかかりません。このアプリ側の利用料もありません。" },
 ];

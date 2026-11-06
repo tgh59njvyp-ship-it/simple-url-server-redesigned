@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simple URL Server — 埋め込み公開</title>
+<meta name="description" content="埋め込み先のサイトから、その場でページやサイトを公開できます。">
+<style>
+:root{
+  --paper:oklch(0.985 0.004 95); --card:#fff; --ink:oklch(0.19 0.008 80);
+  --muted:oklch(0.52 0.012 85); --line:oklch(0.885 0.008 90); --line-strong:oklch(0.78 0.01 88);
+  --brand:#f04e23; --radius:12px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font-family:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Yu Gothic",system-ui,sans-serif;font-size:15px;line-height:1.6;padding:16px}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+.head{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.logo-mark{display:inline-flex;width:30px;height:30px;border-radius:8px;background:var(--ink);color:var(--paper);align-items:center;justify-content:center;flex:none}
+.logo-mark svg{width:16px;height:16px}
+.head h1{font-size:15px;font-weight:900;margin:0;letter-spacing:.02em}
+.key-state{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:10px;font-weight:600;letter-spacing:.08em;border:1px solid var(--line);border-radius:999px;padding:4px 10px;color:var(--muted);white-space:nowrap}
+.key-state.ok{border-color:var(--ink);color:var(--ink)}
+.key-state.bad{background:#b3352b;border-color:#b3352b;color:#fff}
+.sub{font-size:12px;color:var(--muted);margin:0 0 16px}
+.tabs{display:flex;gap:6px;margin-bottom:14px}
+.tab{flex:1;height:40px;border-radius:999px;border:1px solid var(--line-strong);background:transparent;font-weight:700;font-size:13px;cursor:pointer;color:var(--muted)}
+.tab.active{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+textarea.code{width:100%;min-height:170px;border:1px solid var(--line);border-radius:var(--radius);background:#171512;color:#efe9dd;font-family:ui-monospace,monospace;font-size:12.5px;line-height:1.7;padding:12px;resize:vertical}
+.input{width:100%;height:44px;border:1px solid var(--line);border-radius:10px;background:var(--card);padding:0 12px;font-size:16px;color:var(--ink)}
+.flabel{display:block;font-family:"IBM Plex Mono",monospace;font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:14px 0 6px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:999px;border:1px solid transparent;font-weight:700;font-size:14px;height:44px;padding:0 20px;cursor:pointer;background:var(--ink);color:var(--paper);width:100%;margin-top:16px;transition:.2s}
+.btn:hover{background:var(--brand)}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line-strong);width:auto;height:38px;font-size:13px;margin-top:0}
+.drop{border:1px dashed var(--line-strong);border-radius:var(--radius);padding:22px 16px;text-align:center;background:var(--card)}
+.drop p{margin:0 0 10px;font-size:13px;color:var(--muted)}
+.status{font-size:13px;color:var(--muted);min-height:20px;margin-top:10px}
+.status.err{color:#b3352b}
+.result{display:none;margin-top:14px;background:var(--ink);color:var(--paper);border-radius:var(--radius);padding:16px}
+.result.show{display:block}
+.result .rlabel{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:rgba(250,249,246,.55);margin:0 0 6px}
+.result a{color:#fff;font-family:"IBM Plex Mono",monospace;font-size:13px;word-break:break-all}
+.result .row{display:flex;gap:8px;margin-top:12px}
+.result .row .btn{margin-top:0;height:38px;font-size:13px;background:var(--paper);color:var(--ink);width:auto;flex:1}
+.hist{margin-top:22px;border-top:1px solid var(--line);padding-top:14px}
+.hist h2{font-size:12px;font-family:"IBM Plex Mono",monospace;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin:0 0 8px;font-weight:600}
+.hist a{display:block;font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink);text-decoration:none;padding:7px 0;border-top:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hist a:first-of-type{border-top:0}
+.hist a:hover{color:var(--brand)}
+.hidden{display:none!important}
+#toast{position:fixed;left:50%;top:12px;transform:translate(-50%,-16px);background:var(--ink);color:var(--paper);font-size:13px;font-weight:700;border-radius:999px;padding:9px 18px;opacity:0;pointer-events:none;transition:.25s;z-index:9;max-width:92vw;text-align:center}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+#toast.err{background:#b3352b}
+</style>
+</head>
+<body>
+<div id="toast" role="status"></div>
+
+<div class="head">
+  <span class="logo-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><line x1="8" x2="16" y1="12" y2="12"/></svg></span>
+  <h1>SIMPLE URL SERVER</h1>
+  <span class="key-state" id="keyState">キー確認中…</span>
+</div>
+<p class="sub">この画面から、ページやサイトをそのまま公開できます。</p>
+
+<div class="tabs">
+  <button class="tab active" id="tabHtml" type="button">HTMLを貼る</button>
+  <button class="tab" id="tabFiles" type="button">ファイル / ZIP</button>
+</div>
+
+<div id="paneHtml">
+  <textarea class="code" id="htmlInput" spellcheck="false" placeholder="<!doctype html>&#10;<html>&#10;  ...ここにHTMLを貼り付け"></textarea>
+  <label class="flabel" for="htmlSlug">URL name — 任意</label>
+  <input class="input mono" id="htmlSlug" placeholder="my-page" maxlength="40">
+  <button class="btn" id="publishHtml" type="button">公開する</button>
+</div>
+
+<div id="paneFiles" class="hidden">
+  <div class="drop">
+    <p id="fileName">Zip・ファイル・フォルダを選んでください（合計8MBまで、index.htmlがトップページになります）</p>
+    <label class="btn ghost">ファイルを選ぶ<input type="file" id="filePick" multiple hidden></label>
+    <label class="btn ghost">Zipを選ぶ<input type="file" id="zipPick" accept=".zip,application/zip" hidden></label>
+    <label class="btn ghost">フォルダ<input type="file" id="folderPick" webkitdirectory directory hidden></label>
+  </div>
+  <label class="flabel" for="siteSlug">URL name — 任意</label>
+  <input class="input mono" id="siteSlug" placeholder="my-site" maxlength="40">
+  <button class="btn" id="publishFiles" type="button" disabled>公開する</button>
+</div>
+
+<div class="status" id="status"></div>
+
+<div class="result" id="result">
+  <p class="rlabel">Published — 公開URL</p>
+  <a id="resultUrl" href="#" target="_blank" rel="noreferrer"></a>
+  <div class="row">
+    <button class="btn" id="copyUrl" type="button">URLをコピー</button>
+    <button class="btn" id="openUrl" type="button">開く</button>
+  </div>
+</div>
+
+<div class="hist hidden" id="histWrap">
+  <h2>この埋め込みから公開したもの</h2>
+  <div id="histList"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+const SB_URL = "https://vxdfcrgpwjsfjsdpdlzj.supabase.co";
+const SB_KEY = "sb_publishable_fvnkTiIDakzVG3RWp9rkfw_puNi1z1d";
+const VIEW_BASE = "https://simple-url-server.lovable.app";
+const MAX_BYTES = 8 * 1024 * 1024;
+const MIME = { html: "text/html; charset=utf-8", htm: "text/html; charset=utf-8", css: "text/css; charset=utf-8", js: "text/javascript; charset=utf-8", mjs: "text/javascript; charset=utf-8", json: "application/json; charset=utf-8", txt: "text/plain; charset=utf-8", md: "text/markdown; charset=utf-8", svg: "image/svg+xml", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp", ico: "image/x-icon", avif: "image/avif", woff: "font/woff", woff2: "font/woff2", ttf: "font/ttf", mp4: "video/mp4", webm: "video/webm", mp3: "audio/mpeg", pdf: "application/pdf", xml: "application/xml; charset=utf-8", csv: "text/csv; charset=utf-8", wasm: "application/wasm" };
+const mimeFor = (p) => MIME[p.split(".").pop()?.toLowerCase() ?? ""] ?? "application/octet-stream";
+const $ = (id) => document.getElementById(id);
+const esc = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const slugify = (s) => String(s || "").toLowerCase().trim().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
+const randomSlug = (n = 6) => { const c = "abcdefghjkmnpqrstuvwxyz23456789"; let s = ""; const a = new Uint32Array(n); crypto.getRandomValues(a); for (const v of a) s += c[v % c.length]; return s; };
+let toastTimer = 0;
+function toast(msg, isErr) { const t = $("toast"); t.textContent = msg; t.className = isErr ? "err show" : "show"; clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), 2600); }
+function setStatus(msg, isErr) { const s = $("status"); s.textContent = msg || ""; s.classList.toggle("err", !!isErr); }
+
+const KEY = new URLSearchParams(location.search).get("key") || "";
+const HIST_KEY = "sus-embed-history-" + (KEY || "none");
+let keyValid = false, keyChecked = false;
+
+async function sbInsert(table, body) {
+  const res = await fetch(`${SB_URL}/rest/v1/${table}`, {
+    method: "POST",
+    headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, "content-type": "application/json", Prefer: "return=minimal" },
+    body: JSON.stringify(body),
+  });
+  return res;
+}
+function checkKey() {
+  const badge = $("keyState");
+  keyChecked = true;
+  if (/^sus_[a-z0-9]{16,}$/i.test(KEY)) {
+    keyValid = true;
+    badge.textContent = "キーOK";
+    badge.classList.add("ok");
+  } else {
+    badge.textContent = "キー未設定"; badge.classList.add("bad");
+    setStatus("埋め込みキーが設定されていません。Simple URL Serverの設定でキーを発行し、埋め込みコードを取り直してください", true);
+  }
+}
+function keyGate() {
+  if (!keyChecked) { setStatus("キーを確認しています…", false); return false; }
+  if (!keyValid) { setStatus("このキーでは公開できません。発行済みのキーを埋め込んでください", true); return false; }
+  return true;
+}
+
+/* tabs */
+$("tabHtml").addEventListener("click", () => { $("tabHtml").classList.add("active"); $("tabFiles").classList.remove("active"); $("paneHtml").classList.remove("hidden"); $("paneFiles").classList.add("hidden"); });
+$("tabFiles").addEventListener("click", () => { $("tabFiles").classList.add("active"); $("tabHtml").classList.remove("active"); $("paneFiles").classList.remove("hidden"); $("paneHtml").classList.add("hidden"); });
+
+/* history */
+function loadHist() { try { return JSON.parse(localStorage.getItem(HIST_KEY) || "[]"); } catch { return []; } }
+function renderHist() {
+  const items = loadHist();
+  $("histWrap").classList.toggle("hidden", !items.length);
+  $("histList").innerHTML = items.map((i) => `<a href="${esc(i.url)}" target="_blank" rel="noreferrer">${esc(i.url)}</a>`).join("");
+}
+function addHist(url) { const items = loadHist(); items.unshift({ url, at: Date.now() }); localStorage.setItem(HIST_KEY, JSON.stringify(items.slice(0, 20))); renderHist(); }
+function showResult(url) {
+  $("resultUrl").href = url; $("resultUrl").textContent = url;
+  $("copyUrl").onclick = () => { navigator.clipboard?.writeText(url); toast("URLをコピーしました"); };
+  $("openUrl").onclick = () => window.open(url, "_blank");
+  $("result").classList.add("show");
+  addHist(url);
+}
+
+/* HTML publish */
+$("publishHtml").addEventListener("click", async () => {
+  if (!keyGate()) return;
+  const html = $("htmlInput").value;
+  if (!html.trim()) return setStatus("HTMLを貼り付けてください", true);
+  if (new Blob([html]).size > 500 * 1024) return setStatus("HTMLは500KBまでにしてください", true);
+  const btn = $("publishHtml"); btn.disabled = true; btn.textContent = "公開中…"; setStatus("");
+  try {
+    const base = slugify($("htmlSlug").value);
+    let slug = base || randomSlug();
+    const token = crypto.randomUUID();
+    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+    let done = false;
+    for (let i = 0; i < 5; i++) {
+      const r = await sbInsert("pages", { slug, html, title: titleMatch?.[1]?.trim().slice(0, 80) || "ページ", edit_token: token });
+      if (r.ok) { done = true; break; }
+      if (base && i === 0) { setStatus("そのURL名は既に使われています。別のURL名にしてください", true); return; }
+      slug = randomSlug();
+    }
+    if (!done) throw new Error("insert");
+    showResult(`${VIEW_BASE}/p/${slug}`);
+    toast("公開しました");
+  } catch { setStatus("公開に失敗しました。時間をおいて試してください", true); }
+  finally { btn.disabled = false; btn.textContent = "公開する"; }
+});
+
+/* Files publish */
+let pickedFiles = null;
+function fileToB64(file) { return new Promise((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(String(r.result).split(",")[1] ?? ""); r.onerror = reject; r.readAsDataURL(file); }); }
+function u8ToB64(u8) { let bin = ""; for (let i = 0; i < u8.length; i += 0x8000) bin += String.fromCharCode(...u8.subarray(i, i + 0x8000)); return btoa(bin); }
+function normalizeZip(out) {
+  const names = Object.keys(out);
+  if (out["index.html"]) return out;
+  const idx = names.filter((n) => n.endsWith("index.html")).sort((a, b) => a.length - b.length)[0];
+  if (idx) { const prefix = idx.slice(0, -"index.html".length); const stripped = {}; for (const n of names) if (n.startsWith(prefix)) stripped[n.slice(prefix.length)] = out[n]; return stripped; }
+  const top = names[0]?.split("/")[0];
+  let res = out;
+  if (names.length && names.every((n) => n.includes("/") && n.split("/")[0] === top)) { res = {}; for (const n of names) res[n.slice(top.length + 1)] = out[n]; }
+  const htmls = Object.keys(res).filter((n) => /\.html?$/i.test(n));
+  if (htmls.length === 1) res = { ...res, "index.html": res[htmls[0]] };
+  return res;
+}
+async function onPick(list) {
+  const picked = list ? Array.from(list) : [];
+  if (!picked.length) return;
+  if (picked.reduce((s, f) => s + f.size, 0) > MAX_BYTES) return setStatus("合計8MB以下にしてください", true);
+  try {
+    let out = {};
+    for (const file of picked) {
+      const rel = file.webkitRelativePath || file.name;
+      if (rel.split("/").pop().startsWith(".")) continue;
+      if (/\.zip$/i.test(file.name)) {
+        const zip = await JSZip.loadAsync(file);
+        for (const e of Object.values(zip.files)) {
+          if (e.dir || e.name.startsWith("__MACOSX/") || e.name.split("/").pop().startsWith(".")) continue;
+          out[e.name] = { t: mimeFor(e.name), b: await e.async("base64") };
+        }
+      } else out[rel] = { t: mimeFor(rel), b: await fileToB64(file) };
+    }
+    const f = normalizeZip(out);
+    if (!Object.keys(f).length) return setStatus("ファイルが見つかりませんでした", true);
+    if (!f["index.html"]) setStatus("index.html が見つかりません。トップページが表示されない可能性があります", true); else setStatus("");
+    pickedFiles = f;
+    $("fileName").textContent = `${Object.keys(f).length} ファイルを読み込みました`;
+    $("publishFiles").disabled = false;
+  } catch { setStatus("ファイルを読み込めませんでした", true); }
+}
+$("filePick").addEventListener("change", (e) => onPick(e.target.files));
+$("zipPick").addEventListener("change", (e) => onPick(e.target.files));
+$("folderPick").addEventListener("change", (e) => onPick(e.target.files));
+$("publishFiles").addEventListener("click", async () => {
+  if (!keyGate()) return;
+  if (!pickedFiles) return setStatus("ファイルを選んでください", true);
+  const btn = $("publishFiles"); btn.disabled = true; btn.textContent = "公開中…"; setStatus("");
+  try {
+    const base = slugify($("siteSlug").value);
+    let slug = base || randomSlug();
+    const token = crypto.randomUUID();
+    let done = false;
+    for (let i = 0; i < 5; i++) {
+      const r = await sbInsert("sites", { slug, files: pickedFiles, title: "埋め込みから公開", edit_token: token });
+      if (r.ok) { done = true; break; }
+      if (base && i === 0) { setStatus("そのURL名は既に使われています。別のURL名にしてください", true); return; }
+      slug = randomSlug();
+    }
+    if (!done) throw new Error("insert");
+    showResult(`${VIEW_BASE}/s/${slug}/`);
+    toast("公開しました");
+  } catch { setStatus("公開に失敗しました。時間をおいて試してください", true); }
+  finally { btn.disabled = !pickedFiles; btn.textContent = "公開する"; }
+});
+
+checkKey();
+renderHist();
+</script>
+</body>
+</html>
