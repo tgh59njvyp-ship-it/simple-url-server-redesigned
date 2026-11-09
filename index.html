@@ -298,6 +298,16 @@ footer{background:var(--ink);color:var(--paper)}
     <p class="help">「サーバー」タブでAIが生成したコードは、このトークンでこのプロジェクトにデプロイされます。</p>
   </div>
   <div class="set-block">
+    <p class="set-title">Vercel — 動的サイト公開用</p>
+    <div class="field"><label class="flabel" for="setVcToken">Vercel Token</label>
+      <input class="input mono" type="password" id="setVcToken" placeholder="Vercelのアクセストークン">
+      <p class="help" style="margin:0">GitHub／ZIPタブで公開先に「Vercel」を選ぶと、このトークンであなたのVercelへ公開します。Vercel側でビルドが走るので、ViteなどのアプリやAPIなどのサーバー処理も動きます。<a href="https://vercel.com/account/tokens" target="_blank" rel="noreferrer">トークンを発行する</a></p></div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px">
+      <button class="btn btn-primary" id="setVcSave">保存する</button>
+      <span class="status-line" id="setVcStatus"></span>
+    </div>
+  </div>
+  <div class="set-block">
     <p class="set-title">AI — Gemini</p>
     <div class="field"><label class="flabel" for="setAiKey">Gemini API Key</label>
       <input class="input mono" type="password" id="setAiKey" placeholder="AIza...">
@@ -409,14 +419,17 @@ footer{background:var(--ink);color:var(--paper)}
           </div>
           <div class="grid2">
             <div class="field"><label class="flabel" for="zipMode">公開方法</label>
-              <select class="input" id="zipMode"><option value="static">そのまま公開（静的ファイル）</option><option value="build">TypeScriptをビルドして公開</option></select></div>
+              <select class="input" id="zipMode"><option value="static">そのまま公開（静的ファイル）</option><option value="build">アプリをビルドして公開（Vite／React／Vue等）</option></select></div>
             <div class="field hidden" id="zipProjectDirWrap"><label class="flabel" for="zipProjectDir">プロジェクトフォルダ — 任意</label>
               <input class="input mono" id="zipProjectDir" placeholder="例：app（自動判定できれば空欄でOK）"></div>
           </div>
-          <p class="help hidden" id="zipBuildHelp" style="margin:0">Vite型のTypeScriptプロジェクトを、このブラウザの中でビルドして成果物だけを公開します。ビルド時は上のページURL変更は反映されません。</p>
+          <p class="help hidden" id="zipBuildHelp" style="margin:0">Vite型のプロジェクト（React／Vue／TypeScript等）を、このブラウザの中でビルドして成果物だけを公開します。ビルド時は上のページURL変更は反映されません。</p>
+          <div class="field"><label class="flabel" for="zipTarget">公開先</label>
+            <select class="input" id="zipTarget"><option value="sus">このサイトで公開（静的）</option><option value="vercel">Vercelで公開（動的・サーバー可）</option></select></div>
+          <p class="help hidden" id="zipVcHelp" style="margin:0">ソースをあなたのVercelへ送り、Vercel側でビルドして公開します。APIなどのサーバー処理も動きます。先に右上の「設定」でVercelトークンを保存してください。下の名前がそのままプロジェクト名になります。</p>
           <div class="field" id="zipSlugField">
             <label class="flabel" for="zipSlug">URL name — 任意</label>
-            <div class="slug-row"><span class="slug-prefix">/s/</span><input class="input mono" id="zipSlug" placeholder="my-site" maxlength="40"></div>
+            <div class="slug-row"><span class="slug-prefix" id="zipSlugPrefix">/s/</span><input class="input mono" id="zipSlug" placeholder="my-site" maxlength="40"></div>
           </div>
           <button class="btn btn-primary btn-lg btn-block" id="zipPublish" disabled>公開する</button>
           <div class="result" id="zipResult" style="margin:0"></div>
@@ -525,14 +538,17 @@ footer{background:var(--ink);color:var(--paper)}
           <p class="help" style="margin:0">公開リポジトリだけならトークンは不要です。非公開リポジトリや回数制限の緩和には、右上の「設定」からGitHubトークンを入れてください。入れると、あなたのリポジトリ一覧が自動で取得され、上の欄から選べるようになります。</p>
           <div class="grid2">
             <div class="field"><label class="flabel" for="ghMode">公開方法</label>
-              <select class="input" id="ghMode"><option value="static">そのまま公開（静的ファイル）</option><option value="build">TypeScriptをビルドして公開</option></select></div>
+              <select class="input" id="ghMode"><option value="static">そのまま公開（静的ファイル）</option><option value="build">アプリをビルドして公開（Vite／React／Vue等）</option></select></div>
             <div class="field hidden" id="ghProjectDirWrap"><label class="flabel" for="ghProjectDir">プロジェクトフォルダ — 任意</label>
               <input class="input mono" id="ghProjectDir" placeholder="例：app（自動判定できれば空欄でOK）"></div>
           </div>
-          <p class="help hidden" id="ghBuildHelp" style="margin:0">Vite型のTypeScriptプロジェクトを、このブラウザの中でビルドして成果物だけを公開します。初回はビルドエンジンの読み込み（約12MB）に少し時間がかかります。依存パッケージは公開CDN（esm.sh）から読み込む形になります。</p>
+          <p class="help hidden" id="ghBuildHelp" style="margin:0">Vite型のプロジェクト（React／Vue／TypeScript等）を、このブラウザの中でビルドして成果物だけを公開します。初回はビルドエンジンの読み込み（約12MB）に少し時間がかかります。依存パッケージは公開CDN（esm.sh）から読み込む形になります。</p>
+          <div class="field"><label class="flabel" for="ghTarget">公開先</label>
+            <select class="input" id="ghTarget"><option value="sus">このサイトで公開（静的）</option><option value="vercel">Vercelで公開（動的・サーバー可）</option></select></div>
+          <p class="help hidden" id="ghVcHelp" style="margin:0">ソースをあなたのVercelへ送り、Vercel側でビルドして公開します。APIなどのサーバー処理も動きます。先に右上の「設定」でVercelトークンを保存してください。下の名前がそのままプロジェクト名になります（.env も含めて送ります）。</p>
           <div class="field">
             <label class="flabel" for="ghSlug">URL name — 任意</label>
-            <div class="slug-row"><span class="slug-prefix">/s/</span><input class="input mono" id="ghSlug" placeholder="my-site" maxlength="40"></div>
+            <div class="slug-row"><span class="slug-prefix" id="ghSlugPrefix">/s/</span><input class="input mono" id="ghSlug" placeholder="my-site" maxlength="40"></div>
           </div>
           <div class="status-line" id="ghStatus"></div>
           <details class="files hidden" id="ghFilesWrap"><summary id="ghFilesSummary">取得したファイル</summary><div class="files-list" id="ghFilesList"></div></details>
@@ -896,7 +912,8 @@ function normalizeZip(out) {
 async function onPick(list) {
   const picked = list ? Array.from(list) : [];
   if (!picked.length) return;
-  if (picked.reduce((s, f) => s + f.size, 0) > MAX_BYTES) return toast("合計8MB以下にしてください", true);
+  const pickCap = $("zipTarget").value === "vercel" ? 32 * 1024 * 1024 : MAX_BYTES;
+  if (picked.reduce((s, f) => s + f.size, 0) > pickCap) return toast($("zipTarget").value === "vercel" ? "合計32MB以下にしてください" : "合計8MB以下にしてください", true);
   try {
     let out = {};
     for (const file of picked) {
@@ -917,6 +934,7 @@ function renderZip() {
   $("zipFileName").textContent = zipName || "Zip・ファイル・フォルダを選択";
   $("zipPublish").disabled = !zipFiles;
   $("zipPublish").textContent = zipEditing ? "上書き保存" : "公開する";
+  $("zipTarget").disabled = !!zipEditing;
   const names = zipFiles ? Object.keys(zipFiles).sort() : [];
   $("zipPages").classList.toggle("hidden", !names.length);
   if (!names.length) return;
@@ -952,6 +970,17 @@ $("zipCancelEdit").addEventListener("click", () => {
 $("zipPublish").addEventListener("click", async () => {
   if (!zipFiles) return toast("ファイルを選んでください", true);
   const btn = $("zipPublish"); btn.disabled = true; btn.textContent = "アップロード中…";
+  lastBuildWarnings = [];
+  if (!zipEditing && $("zipTarget").value === "vercel") {
+    try {
+      const name = slugify($("zipSlug").value) || slugify(zipName.replace(/\.zip$/i, "")) || randomSlug();
+      const r = await deployToVercel(zipFiles, name, (t) => { btn.textContent = t; });
+      addItem({ kind: "site", slug: name, url: r.url, title: zipName.replace(/\.zip$/i, ""), meta: { via: "Vercel" } });
+      showResult($("zipResult"), r.url, false); toast("公開しました");
+    } catch (e) { toast(vercelErrorText(e), true); }
+    finally { btn.disabled = !zipFiles; btn.textContent = zipEditing ? "上書き保存" : "公開する"; }
+    return;
+  }
   let filesToPublish = zipFiles;
   if ($("zipMode").value === "build") {
     btn.textContent = "ビルド中…";
@@ -966,7 +995,7 @@ $("zipPublish").addEventListener("click", async () => {
       if (!ok) throw new Error("update");
       const u = `${VIEW_BASE}/s/${zipEditing.slug}/`;
       addItem({ kind: "site", slug: zipEditing.slug, url: u, title, editToken: zipEditing.token });
-      showResult($("zipResult"), u, true); toast("更新しました");
+      showResult($("zipResult"), u, true); toast("更新しました" + (lastBuildWarnings.length ? "（注意：" + lastBuildWarnings[0] + "）" : ""));
       return;
     }
     const base = slugify($("zipSlug").value);
@@ -982,7 +1011,7 @@ $("zipPublish").addEventListener("click", async () => {
     if (!done) throw new Error("insert");
     const u = `${VIEW_BASE}/s/${slug}/`;
     addItem({ kind: "site", slug, url: u, title, editToken: token });
-    showResult($("zipResult"), u, false); toast("公開しました");
+    showResult($("zipResult"), u, false); toast("公開しました" + (lastBuildWarnings.length ? "（注意：" + lastBuildWarnings[0] + "）" : ""));
   } catch { toast("公開に失敗しました。時間をおいて試してください", true); }
   finally { btn.disabled = !zipFiles; btn.textContent = zipEditing ? "上書き保存" : "公開する"; }
 });
@@ -1006,6 +1035,7 @@ function renderHistory() {
           <div style="display:flex;align-items:center;gap:8px">
             <span class="kind ${item.kind === "api" ? "api" : ""}">${item.kind === "html" ? I.file + " HTML" : item.kind === "site" ? I.zip + " ZIP" : I.server + " " + esc(item.meta?.method ?? "API")}</span>
             <span class="hist-title">${esc(item.title || item.slug)}</span>
+            ${item.meta?.via ? `<span class="editable"><span class="dot"></span>${esc(item.meta.via)}</span>` : ""}
             ${item.editToken ? '<span class="editable"><span class="dot"></span>編集可</span>' : ""}
           </div>
           <a class="hist-url" href="${esc(item.url)}" target="_blank" rel="noreferrer">${esc(item.url)}</a>
@@ -1238,16 +1268,25 @@ $("ghPublish").addEventListener("click", async () => {
   try {
     const meta = await ghFetch(`/repos/${parsed.owner}/${parsed.repo}`, token);
     const branch = ($("ghBranch").value.trim() || parsed.branch || meta.default_branch || "main");
+    const toVercel = $("ghTarget").value === "vercel";
+    lastBuildWarnings = [];
     setSt(`ブランチ ${branch} のファイル一覧を取得中…`);
     const tree = await ghFetch(`/repos/${parsed.owner}/${parsed.repo}/git/trees/${encodeURIComponent(branch)}?recursive=1`, token);
     let blobs = (tree.tree || []).filter((e) => e.type === "blob");
-    const skippedEnv = blobs.filter((e) => /(^|\/)\.env($|\.)/.test(e.path)).length;
-    blobs = blobs.filter((e) => !/(^|\/)\.env($|\.)/.test(e.path));
-    const tooBig = blobs.filter((e) => (e.size ?? 0) > 4 * 1024 * 1024);
-    blobs = blobs.filter((e) => (e.size ?? 0) <= 4 * 1024 * 1024);
+    const skipDirRe = /(^|\/)(node_modules|\.git)(\/|$)/;
+    const skippedDirs = blobs.filter((e) => skipDirRe.test(e.path)).length;
+    blobs = blobs.filter((e) => !skipDirRe.test(e.path));
+    let skippedEnv = 0;
+    if (!toVercel) {
+      skippedEnv = blobs.filter((e) => /(^|\/)\.env($|\.)/.test(e.path)).length;
+      blobs = blobs.filter((e) => !/(^|\/)\.env($|\.)/.test(e.path));
+    }
+    const fileCap = toVercel ? 10 * 1024 * 1024 : 4 * 1024 * 1024;
+    const tooBig = blobs.filter((e) => (e.size ?? 0) > fileCap);
+    blobs = blobs.filter((e) => (e.size ?? 0) <= fileCap);
     if (!blobs.length) throw new Error("empty");
     const total = blobs.reduce((a, e) => a + (e.size ?? 0), 0);
-    if (total > MAX_BYTES) throw new Error("toolarge");
+    if (total > (toVercel ? 32 * 1024 * 1024 : MAX_BYTES)) throw new Error(toVercel ? "toolarge-vc" : "toolarge");
     const out = {};
     let done = 0;
     for (let i = 0; i < blobs.length; i += 5) {
@@ -1260,15 +1299,29 @@ $("ghPublish").addEventListener("click", async () => {
       setSt(`取得中… ${done}/${blobs.length} ファイル`);
     }
     let files = normalizeZip(out);
-    if ($("ghMode").value === "build") {
-      setSt("TypeScriptをビルドしています…（初回はビルドエンジンの読み込みで少し時間がかかります）");
+    if (!toVercel && $("ghMode").value === "build") {
+      setSt("アプリをビルドしています…（初回はビルドエンジンの読み込みで少し時間がかかります）");
       files = await buildSiteFiles(files, $("ghProjectDir").value.trim());
       setSt("ビルド完了。公開しています…");
     }
-    if (!files["index.html"]) throw new Error("noindex");
+    if (!toVercel && !files["index.html"]) throw new Error("noindex");
     $("ghFilesWrap").classList.remove("hidden");
     $("ghFilesSummary").textContent = `取得したファイル（${Object.keys(files).length}）`;
     $("ghFilesList").innerHTML = Object.keys(files).sort().map((n) => `<div>${esc(n)}</div>`).join("");
+    if (toVercel) {
+      const name = slugify($("ghSlug").value) || slugify(parsed.repo) || randomSlug();
+      const r = await deployToVercel(files, name, (t) => setSt(t));
+      const title = `${parsed.owner}/${parsed.repo}`;
+      addItem({ kind: "site", slug: name, url: r.url, title, meta: { via: "Vercel" } });
+      showResult($("ghResult"), r.url, false);
+      const vnotes = [];
+      if (skippedDirs) vnotes.push("node_modules等は除外しました");
+      if (tooBig.length) vnotes.push(`10MB超の ${tooBig.length} 件は除外しました`);
+      if (tree.truncated) vnotes.push("ファイル数が多いため一部だけ取得しました");
+      setSt("Vercelで公開しました" + (vnotes.length ? "（" + vnotes.join("／") + "）" : ""));
+      toast("公開しました");
+      return;
+    }
     setSt("公開しています…");
     const base = slugify($("ghSlug").value) || slugify(parsed.repo);
     let slug = base || randomSlug();
@@ -1287,7 +1340,9 @@ $("ghPublish").addEventListener("click", async () => {
     showResult($("ghResult"), u, false);
     const notes = [];
     if (skippedEnv) notes.push(".env は除外しました");
+    if (skippedDirs) notes.push("node_modules等は除外しました");
     if (tooBig.length) notes.push(`4MB超の ${tooBig.length} 件は除外しました`);
+    if (lastBuildWarnings.length) notes.push(...lastBuildWarnings);
     if (tree.truncated) notes.push("ファイル数が多いため一部だけ取得しました");
     setSt("公開しました" + (notes.length ? "（" + notes.join("／") + "）" : ""));
     toast("公開しました");
@@ -1297,9 +1352,11 @@ $("ghPublish").addEventListener("click", async () => {
     else if (e.status === 403) setSt("GitHub APIの回数制限に達しました。トークンを入力すると上限が上がります。時間をおいて試してください", true);
     else if (e.message === "noindex") setSt("index.html が見つかりませんでした。トップページになるファイルがあるリポジトリを指定してください", true);
     else if (e.message === "toolarge") setSt("合計8MBを超えるため公開できません。小さいリポジトリで試してください", true);
+    else if (e.message === "toolarge-vc") setSt("合計32MBを超えるためVercelへ送れません。小さいリポジトリで試してください", true);
+    else if (e.message && e.message.startsWith("vc-")) setSt(vercelErrorText(e), true);
     else if (e.message === "taken") setSt("そのURL名は既に使われています。別のURL名にしてください", true);
     else if (e.message === "empty") setSt("ファイルが見つかりませんでした", true);
-    else if (e.message && (e.message.startsWith("ビルド") || e.message.startsWith("TypeScript") || e.message.startsWith("指定フォルダ"))) setSt(e.message, true);
+    else if (e.message && (e.message.startsWith("ビルド") || e.message.startsWith("プロジェクト") || e.message.startsWith("指定フォルダ"))) setSt(e.message, true);
     else setSt("取り込みに失敗しました。時間をおいて試してください", true);
   } finally { btn.disabled = false; btn.textContent = "取り込んで公開する"; }
 });
@@ -1402,6 +1459,43 @@ function normalizePath(p) {
   }
   return parts.join("/");
 }
+function hashStr(s) { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0; return h.toString(36); }
+function parseEnvText(text) {
+  const out = {};
+  for (const line of String(text).split(/\r?\n/)) {
+    const t = line.trim();
+    if (!t || t.startsWith("#")) continue;
+    const m = t.replace(/^export\s+/, "").match(/^([A-Za-z_][A-Za-z0-9_.]*)\s*=\s*(.*)$/);
+    if (!m) continue;
+    let v = m[2].trim();
+    if (v.length >= 2 && ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'")))) v = v.slice(1, -1);
+    out[m[1]] = v;
+  }
+  return out;
+}
+function collectEnv(filesMap, prefix) {
+  const env = {};
+  for (const name of [".env", ".env.local", ".env.production", ".env.production.local"]) {
+    const b = filesMap.get(prefix + name);
+    if (b) Object.assign(env, parseEnvText(new TextDecoder().decode(b)));
+  }
+  return env;
+}
+function scopeCssModule(cssText, path) {
+  const suffix = "_" + hashStr(path);
+  const map = {};
+  const css = String(cssText).replace(/\.(-?[_a-zA-Z][_a-zA-Z0-9-]*)/g, (m, name) => { const scoped = name + suffix; map[name] = scoped; return "." + scoped; });
+  return { css, map };
+}
+let vueCompilerPromise = null;
+function loadVueCompiler(version) {
+  if (!vueCompilerPromise) {
+    const ver = String(version || "3").replace(/^[\^~>=<\s]+/, "") || "3";
+    vueCompilerPromise = import("https://esm.sh/@vue/compiler-sfc@" + ver).catch((e) => { vueCompilerPromise = null; throw e; });
+  }
+  return vueCompilerPromise;
+}
+let lastBuildWarnings = [];
 function findTsProjects(map) {
   const roots = new Set([""]);
   for (const p of map.keys()) { const seg = p.split("/"); if (seg.length === 2 && seg[1] === "index.html") roots.add(seg[0]); }
@@ -1409,7 +1503,7 @@ function findTsProjects(map) {
     const b = map.get((r ? r + "/" : "") + "index.html");
     if (!b) return false;
     const html = new TextDecoder().decode(b);
-    return /<script[^>]*type="module"[^>]*src="[^"]+\.tsx?["']/i.test(html) || /<script[^>]*src="[^"]+\.tsx?["'][^>]*type="module"/i.test(html);
+    return /<script[^>]*type="module"[^>]*src="[^"]+\.(?:ts|tsx|js|jsx|mts|mjs)["']/i.test(html) || /<script[^>]*src="[^"]+\.(?:ts|tsx|js|jsx|mts|mjs)["'][^>]*type="module"/i.test(html);
   });
 }
 async function buildProject(filesMap, root, esbuildImpl) {
@@ -1418,37 +1512,101 @@ async function buildProject(filesMap, root, esbuildImpl) {
   if (!htmlBytes) throw new Error("プロジェクトの index.html が見つかりませんでした");
   const html = new TextDecoder().decode(htmlBytes);
   const m = html.match(/<script[^>]*type="module"[^>]*src="([^"]+)"[^>]*>/i);
-  if (!m) throw new Error("index.html に TypeScript のエントリ（script type=\"module\" で .ts を読み込む記述）が見つかりませんでした");
+  if (!m) throw new Error("index.html にエントリ（script type=\"module\" で .ts/.tsx/.js/.jsx を読み込む記述）が見つかりませんでした");
   const entryRel = m[1].replace(/^\.\//, "").replace(/^\//, "");
-  const entryKey = prefix + entryRel;
-  if (!filesMap.has(entryKey)) throw new Error(`エントリファイル ${entryRel} が見つかりませんでした`);
-  let deps = {};
+  let entryKey = prefix + entryRel;
+  if (!filesMap.has(entryKey)) {
+    const alt = [".ts", ".tsx", ".js", ".jsx", "/index.ts", "/index.tsx", "/index.js"].map((s) => entryKey + s).find((c) => filesMap.has(c));
+    if (alt) entryKey = alt; else throw new Error(`エントリファイル ${entryRel} が見つかりませんでした`);
+  }
+  let deps = {}, devDeps = {};
   const pkgBytes = filesMap.get(prefix + "package.json");
-  if (pkgBytes) { try { deps = { ...(JSON.parse(new TextDecoder().decode(pkgBytes)).dependencies || {}) }; } catch {} }
+  if (pkgBytes) { try { const j = JSON.parse(new TextDecoder().decode(pkgBytes)); deps = j.dependencies || {}; devDeps = j.devDependencies || {}; } catch {} }
+  const allDeps = { ...devDeps, ...deps };
+  const warnings = [];
+  if (["react-router", "react-router-dom", "@tanstack/react-router", "vue-router"].some((k) => allDeps[k])) warnings.push("ルーターを使うアプリは、このサイト内での画面遷移は動きますが、サブURLを直接開く／再読み込みすると表示できないことがあります");
+  for (const [p, b] of filesMap) { if (/\.(ts|tsx|js|jsx)$/.test(p) && new TextDecoder().decode(b).includes("import.meta.glob")) { warnings.push("import.meta.glob は未対応です"); break; } }
+  const rawEnv = collectEnv(filesMap, prefix);
+  const envObj = { BASE_URL: "./", MODE: "production", DEV: false, PROD: true, SSR: false };
+  for (const [k, v] of Object.entries(rawEnv)) if (k.startsWith("VITE_")) envObj[k] = v;
+  const define = { "import.meta.env": JSON.stringify(envObj), "process.env.NODE_ENV": "\"production\"" };
+  for (const [k, v] of Object.entries(envObj)) if (typeof v === "string") define[`import.meta.env.${k}`] = JSON.stringify(v);
+  const vueVersion = String(allDeps.vue || "3");
+  const styleStore = new Map();
+  const cssModStore = new Map();
+  const compileVue = async (bytes, path) => {
+    let compiler;
+    try { compiler = await loadVueCompiler(vueVersion); }
+    catch { return { errors: [{ text: "Vueコンパイラを読み込めませんでした。通信環境を確認してください" }] }; }
+    const text = new TextDecoder().decode(bytes);
+    const parsed = compiler.parse(text, { filename: path });
+    if (parsed.errors && parsed.errors.length) return { errors: [{ text: "Vueファイルの解析に失敗しました：" + (parsed.errors[0].message || parsed.errors[0]) }] };
+    const descriptor = parsed.descriptor;
+    const id = "data-v-" + hashStr(path);
+    const script = compiler.compileScript(descriptor, { id });
+    let code = script.content;
+    if (/export\s+default/.test(code)) code = code.replace(/export\s+default/, "const __sfc__ =");
+    else code += "\nconst __sfc__ = {};";
+    if (descriptor.template) {
+      const tpl = compiler.compileTemplate({ source: descriptor.template.content, filename: path, id, compilerOptions: { bindingMetadata: script.bindings } });
+      if (tpl.errors && tpl.errors.length) return { errors: [{ text: "Vueテンプレートの解析に失敗しました：" + (tpl.errors[0].message || tpl.errors[0]) }] };
+      code += "\n" + tpl.code.replace(/export\s+function\s+render/, "function render");
+      code += "\n__sfc__.render = render;";
+    }
+    descriptor.styles.forEach((st, i) => {
+      if (st.module) warnings.push("Vueの <style module> は未対応です（通常のスタイルとして扱います）");
+      const compiled = compiler.compileStyle({ source: st.content, filename: path, id, scoped: !!st.scoped });
+      const key = "vuestyle:" + path + "#" + i;
+      styleStore.set(key, compiled.code);
+      code += `\nimport "${key}";`;
+    });
+    if (descriptor.styles.some((st) => st.scoped)) code += `\n__sfc__.__scopeId = "${id}";`;
+    code += "\nexport default __sfc__;";
+    return { contents: code, loader: script.lang === "ts" ? "ts" : "js" };
+  };
   const memPlugin = {
     name: "memfs",
     setup(build) {
       build.onResolve({ filter: /.*/ }, (args) => {
         if (args.kind === "entry-point") return { path: args.path, namespace: "mem" };
+        if (args.path.startsWith("vuestyle:")) return { path: args.path, namespace: "vuestyle" };
+        if (args.path.startsWith("cssmodcss:")) return { path: args.path, namespace: "cssmodcss" };
         if (args.path.startsWith(".") || args.path.startsWith("/")) {
           const importerDir = args.importer.replace(/[^/]*$/, "");
           const p = args.path.startsWith("/") ? prefix + args.path.slice(1) : normalizePath(importerDir + args.path);
-          const candidates = [p, p + ".ts", p + ".tsx", p + ".js", p + ".jsx", p + ".css", p + ".json", p + "/index.ts", p + "/index.tsx", p + "/index.js"];
-          for (const c of candidates) if (filesMap.has(c)) return { path: c, namespace: "mem" };
+          const candidates = [p, p + ".ts", p + ".tsx", p + ".js", p + ".jsx", p + ".vue", p + ".mjs", p + ".mts", p + ".css", p + ".json", p + "/index.ts", p + "/index.tsx", p + "/index.js", p + "/index.jsx", p + "/index.vue"];
+          for (const c of candidates) if (filesMap.has(c)) return c.endsWith(".module.css") ? { path: c, namespace: "cssmod" } : { path: c, namespace: "mem" };
           return { errors: [{ text: `ファイルが見つかりません: ${args.path}（${args.importer} から）` }] };
         }
+        if (args.kind === "import-rule") { warnings.push(`CSSパッケージ「${args.path}」は取り込めませんでした`); return { path: args.path, namespace: "cssbare" }; }
         const pkgName = args.path.startsWith("@") ? args.path.split("/").slice(0, 2).join("/") : args.path.split("/")[0];
-        const ver = String(deps[pkgName] || "latest").replace(/^[\^~]/, "");
+        const ver = String(allDeps[pkgName] || "latest").replace(/^[\^~]/, "");
         const rest = args.path.slice(pkgName.length);
         return { path: `https://esm.sh/${pkgName}@${ver}${rest}`, external: true };
       });
-      build.onLoad({ filter: /.*/, namespace: "mem" }, (args) => {
+      build.onLoad({ filter: /.*/, namespace: "mem" }, async (args) => {
         const bytes = filesMap.get(args.path);
         if (!bytes) return { errors: [{ text: `読み込めません: ${args.path}` }] };
         const ext = args.path.split(".").pop().toLowerCase();
-        const loader = { ts: "ts", tsx: "tsx", js: "js", jsx: "jsx", css: "css", json: "json", svg: "file", png: "file", jpg: "file", jpeg: "file", gif: "file", webp: "file", ico: "file", woff: "file", woff2: "file", txt: "text" }[ext] || "text";
+        if (ext === "vue") return compileVue(bytes, args.path);
+        if (ext === "css") {
+          const text = new TextDecoder().decode(bytes);
+          if (/@tailwind|@import\s+["']tailwindcss/.test(text)) warnings.push("Tailwind CSS の自動ビルドには対応していません（生成済みのCSSを使ってください）");
+          return { contents: bytes, loader: "css" };
+        }
+        const loader = { ts: "ts", tsx: "tsx", js: "js", jsx: "jsx", mts: "ts", mjs: "js", json: "json", svg: "file", png: "file", jpg: "file", jpeg: "file", gif: "file", webp: "file", ico: "file", woff: "file", woff2: "file", avif: "file", mp4: "file", webm: "file", txt: "text" }[ext] || "text";
         return { contents: bytes, loader };
       });
+      build.onLoad({ filter: /.*/, namespace: "cssmod" }, (args) => {
+        const bytes = filesMap.get(args.path);
+        if (!bytes) return { errors: [{ text: `読み込めません: ${args.path}` }] };
+        const scoped = scopeCssModule(new TextDecoder().decode(bytes), args.path);
+        cssModStore.set(args.path, scoped.css);
+        return { contents: `import "cssmodcss:${args.path}";\nexport default ${JSON.stringify(scoped.map)};`, loader: "js" };
+      });
+      build.onLoad({ filter: /.*/, namespace: "cssmodcss" }, (args) => ({ contents: cssModStore.get(args.path.slice("cssmodcss:".length)) || "", loader: "css" }));
+      build.onLoad({ filter: /.*/, namespace: "vuestyle" }, (args) => ({ contents: styleStore.get(args.path) || "", loader: "css" }));
+      build.onLoad({ filter: /.*/, namespace: "cssbare" }, () => ({ contents: "", loader: "css" }));
     },
   };
   let result;
@@ -1457,6 +1615,7 @@ async function buildProject(filesMap, root, esbuildImpl) {
       entryPoints: [entryKey], bundle: true, format: "esm", platform: "browser",
       target: ["es2020"], write: false, outdir: "out",
       assetNames: "assets/[name]-[hash]", entryNames: "[name]",
+      jsx: "automatic", define,
       plugins: [memPlugin], logLevel: "silent",
     });
   } catch (e) {
@@ -1472,16 +1631,18 @@ async function buildProject(filesMap, root, esbuildImpl) {
     if (rel.endsWith(".css")) cssName = rel;
   }
   if (!jsName) throw new Error("ビルド結果にJavaScriptが含まれていませんでした");
-  let newHtml = html.replace(m[0], `<script type="module" src="./${jsName}"><\/script>`);
+  let newHtml = html.replace(m[0], `<script type="module" src="./${jsName}">`);
   if (cssName) {
     const link = `<link rel="stylesheet" href="./${cssName}">`;
     newHtml = newHtml.includes("</head>") ? newHtml.replace("</head>", link + "\n</head>") : link + newHtml;
   }
+  for (const [k, v] of Object.entries(envObj)) if (typeof v === "string") newHtml = newHtml.split("%" + k + "%").join(v);
+  newHtml = newHtml.replace(/(src|href)="\/(?!\/)/g, "$1=\"./");
   out.set("index.html", new TextEncoder().encode(newHtml));
   for (const [p, b] of filesMap) {
     if (p.startsWith(prefix + "public/")) out.set(p.slice(prefix.length + 7), b);
   }
-  return out;
+  return { out, warnings };
 }
 async function buildSiteFiles(siteFiles, dirHint) {
   const map = new Map();
@@ -1489,19 +1650,112 @@ async function buildSiteFiles(siteFiles, dirHint) {
   const roots = findTsProjects(map);
   let root = String(dirHint || "").replace(/^\/+|\/+$/g, "");
   if (root) {
-    if (!roots.includes(root)) throw new Error(`指定フォルダ「${root}」にTypeScriptプロジェクトが見つかりませんでした。index.html が .ts を読み込んでいるフォルダを指定してください`);
+    if (!roots.includes(root)) throw new Error(`指定フォルダ「${root}」にプロジェクトが見つかりませんでした。index.html が .ts/.tsx/.js/.jsx を読み込んでいるフォルダを指定してください`);
   } else if (roots.length === 1) root = roots[0];
-  else if (!roots.length) throw new Error("TypeScriptプロジェクトが見つかりませんでした。index.html から .ts ファイルを読み込んでいるプロジェクトを取り込んでください");
-  else throw new Error("TypeScriptプロジェクトが複数あります（" + roots.map((r) => r || "ルート").join("、") + "）。プロジェクトフォルダを指定してください");
+  else if (!roots.length) throw new Error("プロジェクトが見つかりませんでした。index.html から .ts/.tsx/.js/.jsx ファイルを読み込んでいる、Vite型のプロジェクトを取り込んでください");
+  else throw new Error("プロジェクトが複数あります（" + roots.map((r) => r || "ルート").join("、") + "）。プロジェクトフォルダを指定してください");
   let esbuild;
   try { esbuild = await loadEsbuild(); }
   catch { throw new Error("ビルドエンジン（esbuild）を読み込めませんでした。通信環境を確認して、もう一度試してください"); }
   const built = await buildProject(map, root, esbuild);
+  lastBuildWarnings = built.warnings || [];
   const out = {};
   let total = 0;
-  for (const [p, bytes] of built) { out[p] = { t: mimeFor(p), b: u8ToB64(bytes) }; total += bytes.length; }
-  if (total > MAX_BYTES) throw new Error("ビルド結果が8MBを超えています。プロジェクトのファイルサイズを減らしてください");
+  const sizes = [];
+  for (const [p, bytes] of built.out) { out[p] = { t: mimeFor(p), b: u8ToB64(bytes) }; total += bytes.length; sizes.push([p, bytes.length]); }
+  if (total > MAX_BYTES) {
+    sizes.sort((a, b) => b[1] - a[1]);
+    const big = sizes.slice(0, 3).map(([p, s]) => `${p}（${(s / 1048576).toFixed(1)}MB）`).join("、");
+    throw new Error(`ビルド結果が8MBを超えています（合計 ${(total / 1048576).toFixed(1)}MB）。大きなファイル：${big}。publicフォルダなどの大きなファイルを減らしてください`);
+  }
   return out;
+}
+
+/* ===== Vercel公開（動的サイト） ===== */
+const VC_TOKEN_KEY = "sus-vc-token";
+async function sha1Hex(u8) { const d = await crypto.subtle.digest("SHA-1", u8); return [...new Uint8Array(d)].map((x) => x.toString(16).padStart(2, "0")).join(""); }
+function vcFramework(pkgText) {
+  try {
+    const j = JSON.parse(pkgText);
+    const d = { ...(j.dependencies || {}), ...(j.devDependencies || {}) };
+    if (d.next) return "nextjs";
+    if (d.nuxt || d.nuxt3) return "nuxtjs";
+    if (d.astro) return "astro";
+    if (d["@sveltejs/kit"]) return "sveltekit";
+    if (d.gatsby) return "gatsby";
+    if (d.vite || Object.keys(d).some((k) => k.startsWith("@vitejs/"))) return "vite";
+  } catch {}
+  return null;
+}
+async function deployToVercel(siteFiles, name, onStep) {
+  const token = localStorage.getItem(VC_TOKEN_KEY) || "";
+  if (!token) throw new Error("vc-notoken");
+  let entries = Object.entries(siteFiles)
+    .filter(([p]) => !/(^|\/)(node_modules|\.git)(\/|$)/.test(p))
+    .map(([p, f]) => ({ path: p, bytes: b64ToU8(f.b) }));
+  if (!entries.length) throw new Error("vc-empty");
+  if (!entries.some((e) => e.path === "package.json")) {
+    const nested = entries.filter((e) => /^[^/]+\/package.json$/.test(e.path));
+    if (nested.length === 1) {
+      const pre = nested[0].path.slice(0, -"package.json".length);
+      for (const e of entries) if (e.path.startsWith(pre)) e.path = e.path.slice(pre.length);
+      entries = entries.filter((e) => e.path);
+    }
+  }
+  const total = entries.reduce((s, e) => s + e.bytes.length, 0);
+  if (total > 100 * 1024 * 1024) throw new Error("vc-toolarge");
+  const auth = { Authorization: "Bearer " + token };
+  for (const e of entries) e.sha = await sha1Hex(e.bytes);
+  const uploadOne = async (e) => {
+    const res = await fetch("https://api.vercel.com/v2/files", { method: "POST", headers: { ...auth, "x-vercel-digest": e.sha, "content-type": "application/octet-stream" }, body: e.bytes });
+    if (res.status === 401 || res.status === 403) throw new Error("vc-auth");
+  };
+  let up = 0;
+  for (let i = 0; i < entries.length; i += 4) {
+    await Promise.all(entries.slice(i, i + 4).map(async (e) => { await uploadOne(e); up++; }));
+    if (onStep) onStep(`Vercelへ送信中… ${up}/${entries.length} ファイル`);
+  }
+  const pkgEntry = entries.find((e) => e.path === "package.json");
+  const framework = pkgEntry ? vcFramework(new TextDecoder().decode(pkgEntry.bytes)) : null;
+  const body = { name, files: entries.map((e) => ({ file: e.path, sha: e.sha, size: e.bytes.length })), target: "production" };
+  let createUrl = "https://api.vercel.com/v13/deployments";
+  if (framework) body.projectSettings = { framework };
+  else createUrl += "?skipAutoDetectionConfirmation=1";
+  const create = () => fetch(createUrl, { method: "POST", headers: { ...auth, "content-type": "application/json" }, body: JSON.stringify(body) });
+  let res = await create();
+  let data = await res.json().catch(() => ({}));
+  if (!res.ok && data?.error?.code === "missing_files" && Array.isArray(data.error.missing)) {
+    const bySha = new Map(entries.map((e) => [e.sha, e]));
+    for (const sha of data.error.missing) { const e = bySha.get(sha); if (e) await uploadOne(e); }
+    res = await create();
+    data = await res.json().catch(() => ({}));
+  }
+  if (!res.ok) { const e = new Error("vc-create"); e.vcStatus = res.status; e.vcMessage = data?.error?.message || ""; throw e; }
+  if (onStep) onStep("Vercelでビルド中…（1〜2分ほどかかります）");
+  let aliasUrl = (data.alias && data.alias[0]) || "";
+  const depId = data.id;
+  for (let i = 0; i < 45; i++) {
+    await new Promise((r) => setTimeout(r, 4000));
+    const pr = await fetch(`https://api.vercel.com/v13/deployments/${depId}`, { headers: auth });
+    const pd = await pr.json().catch(() => ({}));
+    if (pd.readyState === "READY") { aliasUrl = (pd.alias && pd.alias[0]) || aliasUrl || pd.url || ""; break; }
+    if (pd.readyState === "ERROR" || pd.readyState === "CANCELED") { const e = new Error("vc-build"); e.vcMessage = pd.errorMessage || ""; throw e; }
+    if (i === 44) aliasUrl = aliasUrl || pd.url || "";
+  }
+  return { url: "https://" + (aliasUrl || `${name}.vercel.app`) };
+}
+function vercelErrorText(e) {
+  if (!e || !e.message) return "Vercelへの公開に失敗しました。時間をおいて試してください";
+  if (e.message === "vc-notoken") return "Vercelトークンが未設定です。右上の「設定」でVercelトークンを保存してください";
+  if (e.message === "vc-auth") return "Vercelトークンが無効か、権限がありません。「設定」でトークンを確認してください";
+  if (e.message === "vc-empty") return "送るファイルがありませんでした";
+  if (e.message === "vc-toolarge") return "ファイルの合計が大きすぎます（100MBまで）。プロジェクトを小さくしてください";
+  if (e.message === "vc-create") {
+    if (e.vcStatus === 402 || e.vcStatus === 429) return "Vercelの無料枠の上限に達しています。時間をおくか、Vercel側でプランを確認してください";
+    return "Vercelがプロジェクトを受け付けませんでした" + (e.vcMessage ? "：" + String(e.vcMessage).slice(0, 160) : "") + "。プロジェクト名や構成を確認してください";
+  }
+  if (e.message === "vc-build") return "Vercel側のビルドでエラーになりました" + (e.vcMessage ? "：" + String(e.vcMessage).slice(0, 160) : "") + "。プロジェクトのビルド設定を確認してください";
+  return "Vercelへの公開に失敗しました。時間をおいて試してください";
 }
 
 /* ===== 設定メニュー／リポジトリ自動取得／AIサーバー生成 ===== */
@@ -1511,6 +1765,7 @@ function openSettings() {
   $("setSbToken").value = localStorage.getItem(SV_TOKEN_KEY) || "";
   $("setSbRef").value = localStorage.getItem(SV_REF_KEY) || "vxdfcrgpwjsfjsdpdlzj";
   $("setAiKey").value = localStorage.getItem(KEY_STORAGE) || "";
+  $("setVcToken").value = localStorage.getItem(VC_TOKEN_KEY) || "";
   refreshEmbedUI();
   $("settingsBackdrop").classList.remove("hidden");
   $("settingsSheet").classList.remove("hidden");
@@ -1677,6 +1932,23 @@ function initFeatures() {
   });
   bindMode("ghMode", "ghProjectDirWrap", "ghBuildHelp");
   bindMode("zipMode", "zipProjectDirWrap", "zipBuildHelp");
+  /* 公開先切替 */
+  const bindTarget = (sel, help, prefix, modeSel) => $(sel).addEventListener("change", () => {
+    const vc = $(sel).value === "vercel";
+    $(help).classList.toggle("hidden", !vc);
+    $(prefix).textContent = vc ? "" : "/s/";
+    $(modeSel).disabled = vc;
+  });
+  bindTarget("zipTarget", "zipVcHelp", "zipSlugPrefix", "zipMode");
+  bindTarget("ghTarget", "ghVcHelp", "ghSlugPrefix", "ghMode");
+  /* Vercelトークン保存 */
+  $("setVcSave").addEventListener("click", () => {
+    const v = $("setVcToken").value.trim();
+    if (v) localStorage.setItem(VC_TOKEN_KEY, v); else localStorage.removeItem(VC_TOKEN_KEY);
+    $("setVcStatus").textContent = v ? "保存しました" : "削除しました";
+    $("setVcStatus").classList.remove("err");
+    toast("設定を保存しました");
+  });
   /* 埋め込みキー */
   $("setEmbedIssue").addEventListener("click", issueEmbedKey);
   $("setEmbedRevoke").addEventListener("click", revokeEmbedKey);
@@ -1691,10 +1963,10 @@ function initFeatures() {
 /* ===== 使い方・FAQ ===== */
 const HOWTO = [
   { icon: I.file, t: "HTMLページ", path: "/p/xxx", note: "CSS・JavaScript埋め込み可。最大500KB。", steps: ["HTMLタブにコードを貼る", "URL名を指定（任意。空欄なら自動生成）", "「公開する」を押してURLをシェア", "履歴の「編集」で後から差し替え可能"] },
-  { icon: I.zip, t: "ZIPサイト", path: "/s/xxx", note: "合計8MBまで。TypeScriptプロジェクトはビルドして公開も可能。ページごとのURLも変更できます。", steps: ["ZIP・ファイル・フォルダを選ぶ", "index.html がトップページになります", "「公開する」を押してURLをシェア", "履歴の「編集」でファイルを上書き可能"] },
+  { icon: I.zip, t: "ZIPサイト", path: "/s/xxx", note: "合計8MBまで。Vite等のアプリはビルドして公開も可能。ページごとのURLも変更できます。", steps: ["ZIP・ファイル・フォルダを選ぶ", "index.html がトップページになります", "「公開する」を押してURLをシェア", "履歴の「編集」でファイルを上書き可能"] },
   { icon: I.server, t: "モックAPI", path: "/api/public/e/xxx", note: "CORS対応済み。最大100KB。", steps: ["レスポンスボディ（JSON等）を入力", "メソッド・Content-Type・ステータスを選択", "「APIを公開」して fetch で呼び出す", "履歴の「編集」でレスポンスを更新可能"] },
   { icon: I.bot, t: "AIアシスタント", path: "Gemini", note: "APIキーはこのブラウザだけに保存されます。", steps: ["Gemini APIキーを入力", "やりたいことと対象を選ぶ", "指示を書いて「AIに頼む」", "改善案は確認してから保存を押す"] },
-  { icon: I.git, t: "GitHub公開", path: "/s/xxx", note: ".env ファイルは取り込みから除外されます。合計8MBまで。TypeScriptはビルドして公開可能。", steps: ["リポジトリ名（owner/repo）を入力", "右上の「設定」でGitHubトークンを入れると、自分のリポジトリが自動で並ぶ", "「取り込んで公開する」を押す", "履歴から編集・上書きも可能"] },
+  { icon: I.git, t: "GitHub公開", path: "/s/xxx", note: ".env ファイルは取り込みから除外されます（Vercel公開時は含みます）。合計8MBまで。Vite等のアプリはビルドして公開可能。", steps: ["リポジトリ名（owner/repo）を入力", "右上の「設定」でGitHubトークンを入れると、自分のリポジトリが自動で並ぶ", "「取り込んで公開する」を押す", "履歴から編集・上書きも可能"] },
   { icon: I.rocket, t: "サーバー", path: "/functions/v1/xxx", note: "Supabase Edge Functions（Deno）にデプロイします。", steps: ["右上の「設定」でSupabaseトークンを入力", "作りたい内容を書いてAIにコードを生成させる（手書きも可）", "「デプロイする」を押す", "発行されたURLを fetch で呼び出す"] },
 ];
 $("howtoGrid").innerHTML = HOWTO.map((g) => `
@@ -1709,7 +1981,8 @@ const FAQ = [
   { q: "有効期限はありますか？", a: "特にありません。URLを知っている人だけがアクセスできます。" },
   { q: "料金はかかりますか？", a: "かかりません。登録も不要です。AI機能だけ、ご自身のGemini APIキーが必要です（キーはブラウザ内にのみ保存されます）。" },
   { q: "この静的版と通常版の違いは？", a: "見た目と機能は同じです。静的版はこのファイル1枚で動き、データの保存とURLの配信は公開サーバー（simple-url-server.lovable.app）が担当します。" },
-  { q: "TypeScriptのサイトも公開できますか？", a: "はい。GitHub／ZIPの取り込みで「TypeScriptをビルドして公開」を選ぶと、このブラウザの中でビルドしてから成果物だけを公開します。Vite型のプロジェクト（index.html が .ts を読み込んでいるもの）に対応し、プロジェクトがサブフォルダ（例：app）にある場合は自動判定、またはフォルダ名の指定ができます。Reactなどの依存パッケージは公開CDN（esm.sh）から読み込む形になります。" },
+  { q: "ViteやReact、Vueのアプリも公開できますか？", a: "はい。GitHub／ZIPの取り込みで「アプリをビルドして公開」を選ぶと、このブラウザの中でビルドしてから成果物だけを公開します。Vite型のプロジェクト（index.html が .ts/.tsx/.js/.jsx を読み込んでいるもの）に対応し、React（JSX自動変換）・Vue（.vueファイル）・CSSモジュール・画像などの素材・.env の環境変数（VITE_ で始まるもの）も扱えます。プロジェクトがサブフォルダ（例：app）にある場合は自動判定、またはフォルダ名の指定ができます。依存パッケージは公開CDN（esm.sh）から読み込む形になります。Tailwind CSSの自動ビルドと import.meta.glob には対応していません。" },
+  { q: "サーバーが動く動的サイトも公開できますか？", a: "はい。GitHub／ZIPタブの「公開先」で Vercel を選ぶと、ソースをあなたのVercelへ送って、Vercel側でビルド・公開します。ViteやNext.jsなどのビルドはもちろん、api フォルダのサーバー処理（サーバーレス関数）もそのまま動きます。先に右上の「設定」でVercelトークンを保存してください。公開先がVercelになるため、URLは ○○.vercel.app になります。" },
   { q: "公開機能を自分のサイトに埋め込めますか？", a: "はい。右上の「設定」→「連携 — 埋め込み」でキーを発行し、表示されるコードを埋め込み先のページに貼ると、そのページに公開フォーム（HTML貼付／ファイル・ZIP）が表示され、そこから直接公開できるようになります。キーはサーバーで照合されるため、発行していないキーでは公開できません。キーの失効も設定からできます。" },
   { q: "GitHubのリポジトリを公開する際の注意は？", a: "中身がそのまま静的サイトとして公開されます。TypeScriptなどビルドが必要なプロジェクトは、公開方法で「TypeScriptをビルドして公開」を選べばこのブラウザ内でビルドできます。.env は除外されます。非公開リポジトリにはご自身のGitHubトークンが必要です（ブラウザ内にのみ保存）。" },
   { q: "サーバー機能の料金は？", a: "デプロイ先はご自身のSupabaseプロジェクトで、無料枠の範囲なら追加料金はかかりません。このアプリ側の利用料もありません。" },
